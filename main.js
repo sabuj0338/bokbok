@@ -31,6 +31,10 @@ io.on("connection", (socket) => {
   socket.on("toggle-audio", (data) => {
     socket.broadcast.emit("toggle-audio", data);
   });
+  
+  socket.on("screen-share", (data) => {
+    socket.broadcast.emit("screen-share", data);
+  });
 
   socket.on("offer", (data) => {
     socket.broadcast.emit("offer", data);
