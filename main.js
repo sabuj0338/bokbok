@@ -24,6 +24,14 @@ app.use(
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
+  socket.on("toggle-video", (data) => {
+    socket.broadcast.emit("toggle-video", data);
+  });
+  
+  socket.on("toggle-audio", (data) => {
+    socket.broadcast.emit("toggle-audio", data);
+  });
+
   socket.on("offer", (data) => {
     socket.broadcast.emit("offer", data);
   });
