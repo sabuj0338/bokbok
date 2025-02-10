@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ice_servers, media_constraints } from "../consts";
 import { socket } from "../socket";
 import BokBokView from "./BokBokView";
 
@@ -30,8 +31,6 @@ export default function BokBok({ bokBokId }: Props) {
   async function onDisconnect() {
     console.log("socket disconnected");
     setIsSocketConnected(false);
-    socket.disconnect();
-    window.location.href = "/";
   }
 
   useEffect(() => {
@@ -39,40 +38,23 @@ export default function BokBok({ bokBokId }: Props) {
 
     socket.on("disconnect", onDisconnect);
 
-    // socket.on("hang-up", () => {
-    //   stopRecording();
-    //   if (localStreamRef.current) {
-    //     localStreamRef.current.getTracks().forEach((track) => track.stop());
-    //   }
-    //   if (peerConnectionRef.current) {
-    //     peerConnectionRef.current.close();
-    //   }
-    //   setIsVideoEnabled(false);
-    //   setIsAudioEnabled(false);
-    //   setIsScreenSharing(false);
-    //   setIsRecording(false);
-    //   socket.disconnect();
-    //   window.location.href = "/";
-    // });
+    socket.on("hang-up", hangUp);
 
     const initWebRTC = async () => {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      localStreamRef.current = stream;
+      const localStream = await navigator.mediaDevices.getUserMedia(
+        media_constraints
+      );
+      localStreamRef.current = localStream;
       if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
+        localVideoRef.current.srcObject = localStream;
       }
 
-      const peerConnection = new RTCPeerConnection({
-        iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-      });
+      const peerConnection = new RTCPeerConnection(ice_servers);
 
       // Attach local stream tracks to peer connection
-      stream.getTracks().forEach((track) => {
-        peerConnection.addTrack(track, stream);
-      });
+      localStream
+        .getTracks()
+        .forEach((track) => peerConnection.addTrack(track, localStream));
 
       remoteStreamRef.current = new MediaStream();
       if (remoteVideoRef.current)
@@ -89,8 +71,27 @@ export default function BokBok({ bokBokId }: Props) {
       };
 
       peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
+        if (event.candidate && !event.candidate.candidate.includes("relay")) {
           socket.emit("ice-candidate", event.candidate);
+        }
+      };
+
+      peerConnection.oniceconnectionstatechange = async () => {
+        if (!peerConnection || peerConnection.iceConnectionState === "closed")
+          return;
+        if (peerConnection.iceConnectionState === "disconnected") {
+          console.warn("Peer disconnected! Attempting to reconnect...");
+
+          const offer = await peerConnection.createOffer();
+          await peerConnection.setLocalDescription(offer);
+          socket.emit("reconnect-offer", offer);
+        }
+      };
+
+      peerConnection.onconnectionstatechange = async () => {
+        if (peerConnection.connectionState === "failed") {
+          console.error("Connection failed! Resetting...");
+          restartConnection();
         }
       };
 
@@ -125,7 +126,17 @@ export default function BokBok({ bokBokId }: Props) {
       peerConnectionRef.current = peerConnection;
     };
 
+    function restartConnection() {
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+      initWebRTC();
+    }
+
     initWebRTC();
+
+    setBitrate();
 
     return () => {
       if (localStreamRef.current) {
@@ -140,7 +151,32 @@ export default function BokBok({ bokBokId }: Props) {
     };
   }, []);
 
-  const toggleVideo = async () => {
+  async function setBitrate() {
+    // if(!peerConnectionRef.current) return;
+    const sender = peerConnectionRef.current
+      ?.getSenders()
+      .find((s) => s.track?.kind === "video");
+    if (!sender) return;
+    const params = sender.getParameters();
+    // params.encodings[0].maxBitrate = bitrate * 1000;
+    params.encodings = [
+      {
+        rid: "high",
+        maxBitrate: 2500000,
+      }, // High quality
+      {
+        rid: "mid",
+        maxBitrate: 1000000,
+      }, // Medium quality
+      {
+        rid: "low",
+        maxBitrate: 300000,
+      }, // Low quality
+    ];
+    await sender.setParameters(params);
+  }
+
+  async function toggleVideo() {
     if (localStreamRef.current) {
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
 
@@ -150,7 +186,7 @@ export default function BokBok({ bokBokId }: Props) {
         setIsVideoEnabled(false);
       } else {
         const newStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
+          video: media_constraints.video,
         });
         const newVideoTrack = newStream.getVideoTracks()[0];
         localStreamRef.current.addTrack(newVideoTrack);
@@ -161,21 +197,23 @@ export default function BokBok({ bokBokId }: Props) {
           .find((s) => s.track?.kind === "video");
         if (sender) sender.replaceTrack(newVideoTrack);
 
+        setBitrate();
+
         if (localVideoRef.current)
           localVideoRef.current.srcObject = localStreamRef.current;
         setIsVideoEnabled(true);
       }
     }
-  };
+  }
 
-  const toggleAudio = () => {
+  function toggleAudio() {
     if (localStreamRef.current) {
       localStreamRef.current.getAudioTracks()[0].enabled = !isAudioEnabled;
       setIsAudioEnabled(!isAudioEnabled);
     }
-  };
+  }
 
-  const startScreenShare = async () => {
+  async function startScreenShare() {
     if (!isScreenSharing) {
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
@@ -201,9 +239,9 @@ export default function BokBok({ bokBokId }: Props) {
       }
       setIsScreenSharing(false);
     }
-  };
+  }
 
-  const startRecording = () => {
+  function startRecording() {
     if (localStreamRef.current) {
       mediaRecorderRef.current = new MediaRecorder(localStreamRef.current);
       mediaRecorderRef.current.ondataavailable = (event) => {
@@ -215,16 +253,16 @@ export default function BokBok({ bokBokId }: Props) {
       mediaRecorderRef.current.start();
       setIsRecording(true);
     }
-  };
+  }
 
-  const stopRecording = () => {
+  function stopRecording() {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
-  };
+  }
 
-  const saveRecording = () => {
+  function saveRecording() {
     const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -233,24 +271,26 @@ export default function BokBok({ bokBokId }: Props) {
     a.click();
     URL.revokeObjectURL(url);
     recordedChunksRef.current = [];
-  };
+  }
 
-  const hangUp = (byClick?: boolean) => {
-    stopRecording();
+  function hangUp(byClick?: boolean) {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
     }
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
     }
+    if (mediaRecorderRef.current) {
+      mediaRecorderRef.current.stop();
+    }
     setIsVideoEnabled(false);
     setIsAudioEnabled(false);
     setIsScreenSharing(false);
     setIsRecording(false);
+    if (byClick === true) socket.emit("hang-up");
     socket.disconnect();
     window.location.href = "/";
-    if (byClick === true) socket.emit("hang-up");
-  };
+  }
 
   return (
     <BokBokView
