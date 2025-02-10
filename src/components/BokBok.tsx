@@ -313,8 +313,8 @@ export default function BokBok({ bokBokId }: Props) {
   };
 
   function startRecording() {
-    if (localStreamRef.current) {
-      mediaRecorderRef.current = new MediaRecorder(localStreamRef.current);
+    if (remoteStreamRef.current) {
+      mediaRecorderRef.current = new MediaRecorder(remoteStreamRef.current);
       mediaRecorderRef.current.ondataavailable = (event) => {
         if (event.data.size > 0) {
           recordedChunksRef.current.push(event.data);
