@@ -1,8 +1,11 @@
+import { twMerge } from "tailwind-merge";
+
 type Props = {
   isAudioEnabled?: boolean;
   isVideoEnabled?: boolean;
   videoRef: React.RefObject<HTMLVideoElement | null>;
   id?: string;
+  className?: string;
 };
 
 export default function Video({
@@ -10,16 +13,17 @@ export default function Video({
   isAudioEnabled,
   videoRef,
   id,
+  className,
 }: Props) {
   return (
-    <div className="relative w-full max-w-xl aspect-video bg-zinc-900 rounded">
+    <div className="relative w-full aspect-video bg-zinc-900 rounded">
       <video
         ref={videoRef}
         id={id}
         autoPlay
         playsInline
         // muted={isAudioOn}
-        className="w-full aspect-video bg-zinc-900 rounded"
+        className={twMerge("w-full aspect-video bg-zinc-900 rounded", className)}
       />
       {!isVideoEnabled && (
         <div className="absolute top-0 left-0 right-0 bottom-0 w-full aspect-video bg-zinc-900 rounded flex justify-center items-center">

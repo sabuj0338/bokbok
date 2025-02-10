@@ -11,6 +11,7 @@ export default function BokBok({ bokBokId }: Props) {
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const screenShareVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -22,7 +23,7 @@ export default function BokBok({ bokBokId }: Props) {
   const [isRecording, setIsRecording] = useState(false);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
-  const screenStreamRef = useRef<MediaStream | null>(null);
+  const screenShareStreamRef = useRef<MediaStream | null>(null);
 
   // initialize the socket connection
   async function onConnect() {
@@ -123,6 +124,11 @@ export default function BokBok({ bokBokId }: Props) {
         if (peerConnection.remoteDescription) {
           await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
         }
+      });
+
+      // Handle receiving a remote screen share signal
+      socket.on("screen-share", (isSharing: boolean) => {
+        setIsScreenSharing(isSharing);
       });
 
       peerConnectionRef.current = peerConnection;
@@ -240,30 +246,61 @@ export default function BokBok({ bokBokId }: Props) {
   async function startScreenShare() {
     if (!isScreenSharing) {
       try {
-        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+        const screenShareStream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
         });
-        screenStreamRef.current = screenStream;
+        screenShareStreamRef.current = screenShareStream;
+        // Show screen share in a separate video element
+        if (screenShareVideoRef.current) {
+          screenShareVideoRef.current.srcObject = screenShareStream;
+        }
+        // Replace video track in WebRTC connection
+        const screenTrack = screenShareStream.getVideoTracks()[0];
         const sender = peerConnectionRef.current
           ?.getSenders()
           .find((s) => s.track?.kind === "video");
-        if (sender) {
-          sender.replaceTrack(screenStream.getVideoTracks()[0]);
-        }
+        if (sender) sender.replaceTrack(screenTrack);
+
+        // Notify remote user that screen sharing started
+        socket.emit("screen-share", true);
+
+        // Handle when the user stops screen sharing
+        screenTrack.onended = () => {
+          stopScreenShare();
+        };
+
         setIsScreenSharing(true);
       } catch (error) {
         console.error("Error starting screen sharing", error);
       }
     } else {
+      stopScreenShare();
+    }
+  }
+
+  // Stop Screen Sharing
+  const stopScreenShare = async () => {
+    if (screenShareStreamRef.current) {
+      screenShareStreamRef.current.getTracks().forEach((track) => track.stop());
+      screenShareStreamRef.current = null;
+    }
+
+    // Switch back to the camera stream
+    if (localStreamRef.current) {
+      const newVideoTrack = localStreamRef.current.getVideoTracks()[0];
       const sender = peerConnectionRef.current
         ?.getSenders()
         .find((s) => s.track?.kind === "video");
-      if (sender && localStreamRef.current) {
-        sender.replaceTrack(localStreamRef.current.getVideoTracks()[0]);
-      }
-      setIsScreenSharing(false);
+      if (sender) sender.replaceTrack(newVideoTrack);
+      if (localVideoRef.current)
+        localVideoRef.current.srcObject = localStreamRef.current;
     }
-  }
+
+    // Notify remote user that screen sharing stopped
+    socket.emit("screen-share", false);
+
+    setIsScreenSharing(false);
+  };
 
   function startRecording() {
     if (localStreamRef.current) {
@@ -316,7 +353,7 @@ export default function BokBok({ bokBokId }: Props) {
     window.location.href = "/";
   }
 
-  console.log("bokBokId", bokBokId)
+  console.log("bokBokId", bokBokId);
 
   return (
     <BokBokView
@@ -334,6 +371,7 @@ export default function BokBok({ bokBokId }: Props) {
       hangUp={() => hangUp(true)}
       localVideoRef={localVideoRef}
       remoteVideoRef={remoteVideoRef}
+      screenShareVideoRef={screenShareVideoRef}
     />
   );
 }

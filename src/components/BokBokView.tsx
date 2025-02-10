@@ -1,4 +1,5 @@
 import React from "react";
+import { twMerge } from "tailwind-merge";
 import AudioIconButton from "./AudioIconButton";
 import HangUpIconButton from "./HangUpIconButton";
 import Loader from "./Loader";
@@ -14,14 +15,15 @@ type Props = {
   isRemoteAudioEnabled: boolean;
   isRecording: boolean;
   isScreenSharing: boolean;
+  isSocketConnected: boolean;
   startScreenRecording: () => void;
   startScreenSharing: () => void;
   toggleVideo: () => void;
   toggleAudio: () => void;
-  isSocketConnected: boolean;
   hangUp: (byClick?: boolean) => void;
   localVideoRef: React.RefObject<HTMLVideoElement | null>;
   remoteVideoRef: React.RefObject<HTMLVideoElement | null>;
+  screenShareVideoRef: React.RefObject<HTMLVideoElement | null>;
 };
 
 export default function BokBokView({
@@ -39,6 +41,7 @@ export default function BokBokView({
   hangUp,
   localVideoRef,
   remoteVideoRef,
+  screenShareVideoRef,
 }: // socket,
 Props) {
   const hidden = isSocketConnected ? "" : "hidden";
@@ -48,19 +51,37 @@ Props) {
       <main
         className={`min-h-screen flex flex-col justify-center items-center ${hidden}`}
       >
-        <div className="p-3 w-full h-full flex flex-wrap justify-center items-center gap-8">
-          <Video
-            id="localVideo"
-            isVideoEnabled={isVideoEnabled}
-            isAudioEnabled={isAudioEnabled}
-            videoRef={localVideoRef}
-          />
-          <Video
-            id="remoteVideo"
-            isVideoEnabled={isRemoteVideoEnabled}
-            isAudioEnabled={isRemoteAudioEnabled}
-            videoRef={remoteVideoRef}
-          />
+        <div className="p-3 w-full h-full flex flex-wrap md:flex-nowrap justify-center items-center gap-4">
+          <div className={`w-full md:w-4/5 ${isScreenSharing ? "" : "hidden"}`}>
+            <Video
+              id="screenShareVideo"
+              isVideoEnabled={isScreenSharing}
+              isAudioEnabled={false}
+              videoRef={screenShareVideoRef}
+              className={`border border-zinc-600`}
+            />
+          </div>
+          <div
+            className={twMerge(
+              "flex flex-wrap justify-center items-center gap-4",
+              isScreenSharing ? "w-full md:w-1/5" : "w-full md:flex-nowrap",
+            )}
+          >
+            <Video
+              id="localVideo"
+              isVideoEnabled={isVideoEnabled}
+              isAudioEnabled={isAudioEnabled}
+              videoRef={localVideoRef}
+              className="border border-green-600"
+            />
+            <Video
+              id="remoteVideo"
+              isVideoEnabled={isRemoteVideoEnabled}
+              isAudioEnabled={isRemoteAudioEnabled}
+              videoRef={remoteVideoRef}
+              className="border border-indigo-600"
+            />
+          </div>
         </div>
       </main>
 
