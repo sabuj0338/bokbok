@@ -15,9 +15,10 @@ type Props = {
   isRemoteAudioEnabled: boolean;
   isRecording: boolean;
   isScreenSharing: boolean;
+  isRemoteScreenSharing: boolean;
   isSocketConnected: boolean;
   startScreenRecording: () => void;
-  startScreenSharing: () => void;
+  toggleScreenShare: () => void;
   toggleVideo: () => void;
   toggleAudio: () => void;
   hangUp: (byClick?: boolean) => void;
@@ -32,10 +33,11 @@ export default function BokBokView({
   isRemoteVideoEnabled,
   isRemoteAudioEnabled,
   isScreenSharing,
+  isRemoteScreenSharing,
   isSocketConnected,
   isRecording,
   startScreenRecording,
-  startScreenSharing,
+  toggleScreenShare,
   toggleVideo,
   toggleAudio,
   hangUp,
@@ -52,10 +54,10 @@ Props) {
         className={`min-h-screen flex flex-col justify-center items-center ${hidden}`}
       >
         <div className="p-3 w-full h-full flex flex-wrap md:flex-nowrap justify-center items-center gap-4">
-          <div className={`w-full md:w-4/5 ${isScreenSharing ? "" : "hidden"}`}>
+          <div className={`w-full md:w-4/5 ${(isRemoteScreenSharing || isScreenSharing) ? "" : "hidden"}`}>
             <Video
               id="screenShareVideo"
-              isVideoEnabled={isScreenSharing}
+              isVideoEnabled={isRemoteScreenSharing || isScreenSharing}
               isAudioEnabled={false}
               videoRef={screenShareVideoRef}
               className={`border border-zinc-600`}
@@ -64,7 +66,7 @@ Props) {
           <div
             className={twMerge(
               "flex flex-wrap justify-center items-center gap-4",
-              isScreenSharing ? "w-full md:w-1/5" : "w-full md:flex-nowrap",
+              (isRemoteScreenSharing ||isScreenSharing) ? "w-full md:w-1/5" : "w-full md:flex-nowrap",
             )}
           >
             <Video
@@ -95,7 +97,7 @@ Props) {
           <VideoIconButton status={isVideoEnabled} onClick={toggleVideo} />
           <ShareScreenIconButton
             status={isScreenSharing}
-            onClick={startScreenSharing}
+            onClick={toggleScreenShare}
           />
           <HangUpIconButton onClick={() => hangUp(true)} />
         </div>

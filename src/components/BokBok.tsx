@@ -20,6 +20,7 @@ export default function BokBok({ bokBokId }: Props) {
   const [isRemoteVideoEnabled, setIsRemoteVideoEnabled] = useState(true);
   const [isRemoteAudioEnabled, setIsRemoteAudioEnabled] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
@@ -128,7 +129,16 @@ export default function BokBok({ bokBokId }: Props) {
 
       // Handle receiving a remote screen share signal
       socket.on("screen-share", (isSharing: boolean) => {
-        setIsScreenSharing(isSharing);
+        console.log("screen share started", isSharing);
+        if (isSharing) {
+          if (remoteStreamRef.current && screenShareVideoRef.current) {
+            screenShareVideoRef.current.srcObject = remoteStreamRef.current;
+          }
+        }
+        const stream = screenShareVideoRef.current?.srcObject as MediaStream;
+        const videoTrack = stream?.getVideoTracks()[0];
+        if (videoTrack) videoTrack.enabled = isSharing;
+        setIsRemoteScreenSharing(isSharing);
       });
 
       peerConnectionRef.current = peerConnection;
@@ -243,7 +253,7 @@ export default function BokBok({ bokBokId }: Props) {
     }
   }
 
-  async function startScreenShare() {
+  async function toggleScreenShare() {
     if (!isScreenSharing) {
       try {
         const screenShareStream = await navigator.mediaDevices.getDisplayMedia({
@@ -347,6 +357,7 @@ export default function BokBok({ bokBokId }: Props) {
     setIsVideoEnabled(false);
     setIsAudioEnabled(false);
     setIsScreenSharing(false);
+    setIsRemoteScreenSharing(false);
     setIsRecording(false);
     if (byClick === true) socket.emit("hang-up");
     socket.disconnect();
@@ -362,10 +373,11 @@ export default function BokBok({ bokBokId }: Props) {
       isRemoteVideoEnabled={isRemoteVideoEnabled}
       isRemoteAudioEnabled={isRemoteAudioEnabled}
       isScreenSharing={isScreenSharing}
+      isRemoteScreenSharing={isRemoteScreenSharing}
       isSocketConnected={isSocketConnected}
       isRecording={isRecording}
       startScreenRecording={isRecording ? stopRecording : startRecording}
-      startScreenSharing={startScreenShare}
+      toggleScreenShare={toggleScreenShare}
       toggleVideo={toggleVideo}
       toggleAudio={toggleAudio}
       hangUp={() => hangUp(true)}
