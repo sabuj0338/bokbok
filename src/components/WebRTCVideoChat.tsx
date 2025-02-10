@@ -1,13 +1,9 @@
-import { useEffect, useRef, useState } from "react";
-import { socket } from "../socket";
-import BokBokView from "./BokBokView";
+import React, { useEffect, useRef, useState } from "react";
+import io from "socket.io-client";
 
-type Props = {
-  bokBokId: string;
-};
+const socket = io("https://bokbok.onrender.com"); // Replace with your signaling server URL
 
-export default function BokBok({ bokBokId }: Props) {
-  const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
+const WebRTCVideoChat: React.FC = () => {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -21,40 +17,7 @@ export default function BokBok({ bokBokId }: Props) {
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
 
-  // initialize the socket connection
-  async function onConnect() {
-    console.log("socket connected");
-    setIsSocketConnected(true);
-  }
-
-  async function onDisconnect() {
-    console.log("socket disconnected");
-    setIsSocketConnected(false);
-    socket.disconnect();
-    window.location.href = "/";
-  }
-
   useEffect(() => {
-    socket.on("connect", onConnect);
-
-    socket.on("disconnect", onDisconnect);
-
-    // socket.on("hang-up", () => {
-    //   stopRecording();
-    //   if (localStreamRef.current) {
-    //     localStreamRef.current.getTracks().forEach((track) => track.stop());
-    //   }
-    //   if (peerConnectionRef.current) {
-    //     peerConnectionRef.current.close();
-    //   }
-    //   setIsVideoEnabled(false);
-    //   setIsAudioEnabled(false);
-    //   setIsScreenSharing(false);
-    //   setIsRecording(false);
-    //   socket.disconnect();
-    //   window.location.href = "/";
-    // });
-
     const initWebRTC = async () => {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
@@ -68,12 +31,10 @@ export default function BokBok({ bokBokId }: Props) {
       const peerConnection = new RTCPeerConnection({
         iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
       });
-
       // Attach local stream tracks to peer connection
       stream.getTracks().forEach((track) => {
         peerConnection.addTrack(track, stream);
       });
-
       remoteStreamRef.current = new MediaStream();
       if (remoteVideoRef.current)
         remoteVideoRef.current.srcObject = remoteStreamRef.current;
@@ -134,37 +95,14 @@ export default function BokBok({ bokBokId }: Props) {
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
       }
-      socket.off("connect", onConnect);
-      socket.off("disconnect", onDisconnect);
       socket.disconnect();
     };
   }, []);
 
-  const toggleVideo = async () => {
+  const toggleVideo = () => {
     if (localStreamRef.current) {
-      const videoTrack = localStreamRef.current.getVideoTracks()[0];
-
-      if (isVideoEnabled) {
-        videoTrack.stop(); // Stop the camera
-        localStreamRef.current.removeTrack(videoTrack);
-        setIsVideoEnabled(false);
-      } else {
-        const newStream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-        });
-        const newVideoTrack = newStream.getVideoTracks()[0];
-        localStreamRef.current.addTrack(newVideoTrack);
-
-        // Replace the track in the peer connection
-        const sender = peerConnectionRef.current
-          ?.getSenders()
-          .find((s) => s.track?.kind === "video");
-        if (sender) sender.replaceTrack(newVideoTrack);
-
-        if (localVideoRef.current)
-          localVideoRef.current.srcObject = localStreamRef.current;
-        setIsVideoEnabled(true);
-      }
+      localStreamRef.current.getVideoTracks()[0].enabled = !isVideoEnabled;
+      setIsVideoEnabled(!isVideoEnabled);
     }
   };
 
@@ -235,37 +173,67 @@ export default function BokBok({ bokBokId }: Props) {
     recordedChunksRef.current = [];
   };
 
-  const hangUp = (byClick?: boolean) => {
-    stopRecording();
+  const hangUp = () => {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
     }
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
     }
+    socket.emit("hangup");
     setIsVideoEnabled(false);
     setIsAudioEnabled(false);
     setIsScreenSharing(false);
-    setIsRecording(false);
-    socket.disconnect();
-    window.location.href = "/";
-    if (byClick === true) socket.emit("hang-up");
   };
 
   return (
-    <BokBokView
-      isVideoEnabled={isVideoEnabled}
-      isAudioEnabled={isAudioEnabled}
-      isScreenSharing={isScreenSharing}
-      isSocketConnected={isSocketConnected}
-      isRecording={isRecording}
-      startScreenRecording={isRecording ? stopRecording : startRecording}
-      startScreenSharing={startScreenShare}
-      toggleVideo={toggleVideo}
-      toggleAudio={toggleAudio}
-      hangUp={() => hangUp(true)}
-      localVideoRef={localVideoRef}
-      remoteVideoRef={remoteVideoRef}
-    />
+    <div className="flex flex-col items-center space-y-4 p-4 bg-gray-900 text-white">
+      <div className="flex space-x-4">
+        <video
+          ref={localVideoRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-64 h-48 border rounded-lg"
+        />
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          className="w-64 h-48 border rounded-lg"
+        />
+      </div>
+      <div className="flex space-x-2">
+        <button onClick={toggleVideo} className="p-2 bg-blue-500 rounded-lg">
+          {isVideoEnabled ? "Stop Video" : "Start Video"}
+        </button>
+        <button onClick={toggleAudio} className="p-2 bg-green-500 rounded-lg">
+          {isAudioEnabled ? "Mute" : "Unmute"}
+        </button>
+        <button
+          onClick={startScreenShare}
+          className="p-2 bg-yellow-500 rounded-lg"
+        >
+          {isScreenSharing ? "Stop Share" : "Share Screen"}
+        </button>
+        {isRecording ? (
+          <button onClick={stopRecording} className="p-2 bg-red-500 rounded-lg">
+            Stop Recording
+          </button>
+        ) : (
+          <button
+            onClick={startRecording}
+            className="p-2 bg-purple-500 rounded-lg"
+          >
+            Record
+          </button>
+        )}
+        <button onClick={hangUp} className="p-2 bg-gray-500 rounded-lg">
+          Hang Up
+        </button>
+      </div>
+    </div>
   );
-}
+};
+
+export default WebRTCVideoChat;
