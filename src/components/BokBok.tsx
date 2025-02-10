@@ -16,6 +16,8 @@ export default function BokBok({ bokBokId }: Props) {
   const recordedChunksRef = useRef<Blob[]>([]);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+  const [isRemoteVideoEnabled, setIsRemoteVideoEnabled] = useState(true);
+  const [isRemoteAudioEnabled, setIsRemoteAudioEnabled] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -37,7 +39,7 @@ export default function BokBok({ bokBokId }: Props) {
     socket.on("connect", onConnect);
 
     socket.on("disconnect", onDisconnect);
-
+    
     socket.on("hang-up", hangUp);
 
     const initWebRTC = async () => {
@@ -138,6 +140,9 @@ export default function BokBok({ bokBokId }: Props) {
 
     setBitrate();
 
+    socket.on("toggle-video", toggleRemoteVideo);
+    socket.on("toggle-audio", toggleRemoteAudio);
+
     return () => {
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
@@ -184,6 +189,7 @@ export default function BokBok({ bokBokId }: Props) {
         videoTrack.stop(); // Stop the camera
         localStreamRef.current.removeTrack(videoTrack);
         setIsVideoEnabled(false);
+        socket.emit("toggle-video", false);
       } else {
         const newStream = await navigator.mediaDevices.getUserMedia({
           video: media_constraints.video,
@@ -202,7 +208,38 @@ export default function BokBok({ bokBokId }: Props) {
         if (localVideoRef.current)
           localVideoRef.current.srcObject = localStreamRef.current;
         setIsVideoEnabled(true);
+        socket.emit("toggle-video", true);
       }
+    }
+  }
+
+  async function toggleRemoteVideo(enabled: boolean) {
+    if (remoteStreamRef.current) {
+      const videoTrack = remoteStreamRef.current.getVideoTracks()[0];
+      if (!enabled) {
+        videoTrack.stop();
+        remoteStreamRef.current.removeTrack(videoTrack);
+      } else {
+        // remoteStreamRef.current = new MediaStream();
+        // if (remoteVideoRef.current)
+        //   remoteVideoRef.current.srcObject = remoteStreamRef.current;
+        // // Receive tracks and add to remote stream
+        // if (peerConnectionRef.current) {
+        //   peerConnectionRef.current.ontrack = (event) => {
+        //     event.streams[0].getTracks().forEach((track) => {
+        //       remoteStreamRef.current?.addTrack(track);
+        //     });
+        //   };
+        // }
+        // const newStream = await navigator.mediaDevices.getUserMedia({
+        //   video: media_constraints.video,
+        // });
+        // const newVideoTrack = newStream.getVideoTracks()[0];
+        // remoteStreamRef.current.addTrack(newVideoTrack);
+        // if (remoteVideoRef.current)
+        //   remoteVideoRef.current.srcObject = remoteStreamRef.current;
+      }
+      setIsRemoteVideoEnabled(enabled);
     }
   }
 
@@ -210,6 +247,14 @@ export default function BokBok({ bokBokId }: Props) {
     if (localStreamRef.current) {
       localStreamRef.current.getAudioTracks()[0].enabled = !isAudioEnabled;
       setIsAudioEnabled(!isAudioEnabled);
+      socket.emit("toggle-audio", !isAudioEnabled);
+    }
+  }
+
+  function toggleRemoteAudio(enabled: boolean) {
+    if (remoteStreamRef.current) {
+      remoteStreamRef.current.getAudioTracks()[0].enabled = enabled;
+      setIsRemoteAudioEnabled(enabled);
     }
   }
 
@@ -292,10 +337,14 @@ export default function BokBok({ bokBokId }: Props) {
     window.location.href = "/";
   }
 
+  console.log("first render", socket.connected);
+
   return (
     <BokBokView
       isVideoEnabled={isVideoEnabled}
       isAudioEnabled={isAudioEnabled}
+      isRemoteVideoEnabled={isRemoteVideoEnabled}
+      isRemoteAudioEnabled={isRemoteAudioEnabled}
       isScreenSharing={isScreenSharing}
       isSocketConnected={isSocketConnected}
       isRecording={isRecording}

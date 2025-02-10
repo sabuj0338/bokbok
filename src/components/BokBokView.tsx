@@ -10,6 +10,8 @@ import VideoIconButton from "./VideoIconButton";
 type Props = {
   isVideoEnabled: boolean;
   isAudioEnabled: boolean;
+  isRemoteVideoEnabled: boolean;
+  isRemoteAudioEnabled: boolean;
   isRecording: boolean;
   isScreenSharing: boolean;
   startScreenRecording: () => void;
@@ -25,6 +27,8 @@ type Props = {
 export default function BokBokView({
   isVideoEnabled,
   isAudioEnabled,
+  isRemoteVideoEnabled,
+  isRemoteAudioEnabled,
   isScreenSharing,
   isSocketConnected,
   isRecording,
@@ -53,8 +57,8 @@ Props) {
           />
           <Video
             id="remoteVideo"
-            isVideoEnabled={true}
-            isAudioEnabled={true}
+            isVideoEnabled={isRemoteVideoEnabled}
+            isAudioEnabled={isRemoteAudioEnabled}
             videoRef={remoteVideoRef}
           />
         </div>
