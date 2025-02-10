@@ -39,8 +39,8 @@ export default function BokBok({ bokBokId }: Props) {
     socket.on("connect", onConnect);
 
     socket.on("disconnect", onDisconnect);
-    
-    socket.on("hang-up", hangUp);
+
+    // socket.on("hang-up", hangUp);
 
     const initWebRTC = async () => {
       const localStream = await navigator.mediaDevices.getUserMedia(
@@ -203,8 +203,6 @@ export default function BokBok({ bokBokId }: Props) {
           .find((s) => s.track?.kind === "video");
         if (sender) sender.replaceTrack(newVideoTrack);
 
-        setBitrate();
-
         if (localVideoRef.current)
           localVideoRef.current.srcObject = localStreamRef.current;
         setIsVideoEnabled(true);
@@ -214,32 +212,12 @@ export default function BokBok({ bokBokId }: Props) {
   }
 
   async function toggleRemoteVideo(enabled: boolean) {
-    if (remoteStreamRef.current) {
-      const videoTrack = remoteStreamRef.current.getVideoTracks()[0];
-      if (!enabled) {
-        videoTrack.stop();
-        remoteStreamRef.current.removeTrack(videoTrack);
-      } else {
-        // remoteStreamRef.current = new MediaStream();
-        // if (remoteVideoRef.current)
-        //   remoteVideoRef.current.srcObject = remoteStreamRef.current;
-        // // Receive tracks and add to remote stream
-        // if (peerConnectionRef.current) {
-        //   peerConnectionRef.current.ontrack = (event) => {
-        //     event.streams[0].getTracks().forEach((track) => {
-        //       remoteStreamRef.current?.addTrack(track);
-        //     });
-        //   };
-        // }
-        // const newStream = await navigator.mediaDevices.getUserMedia({
-        //   video: media_constraints.video,
-        // });
-        // const newVideoTrack = newStream.getVideoTracks()[0];
-        // remoteStreamRef.current.addTrack(newVideoTrack);
-        // if (remoteVideoRef.current)
-        //   remoteVideoRef.current.srcObject = remoteStreamRef.current;
-      }
-      setIsRemoteVideoEnabled(enabled);
+    console.log("toggle remote video", enabled);
+    setIsRemoteVideoEnabled(enabled);
+    if (remoteVideoRef.current) {
+      const stream = remoteVideoRef.current.srcObject as MediaStream;
+      const videoTrack = stream?.getVideoTracks()[0];
+      if (videoTrack) videoTrack.enabled = enabled;
     }
   }
 
@@ -252,6 +230,7 @@ export default function BokBok({ bokBokId }: Props) {
   }
 
   function toggleRemoteAudio(enabled: boolean) {
+    console.log("toggle remote audio", enabled);
     if (remoteStreamRef.current) {
       remoteStreamRef.current.getAudioTracks()[0].enabled = enabled;
       setIsRemoteAudioEnabled(enabled);
@@ -337,7 +316,7 @@ export default function BokBok({ bokBokId }: Props) {
     window.location.href = "/";
   }
 
-  console.log("first render", socket.connected);
+  console.log("bokBokId", bokBokId)
 
   return (
     <BokBokView

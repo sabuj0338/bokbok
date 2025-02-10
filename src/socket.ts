@@ -4,6 +4,6 @@ import { io } from "socket.io-client";
 const prodSocketURL = "https://bokbok.onrender.com";
 const devSocketURL = "http://localhost:3000";
 // const URL = devSocketURL;
-const URL = import.meta.env.VITE_NODE_ENV === "production" ? prodSocketURL : devSocketURL;
+const URL = import.meta.env.VITE_NODE_ENV !== "production" ? prodSocketURL : devSocketURL;
 
 export const socket = io(URL);
