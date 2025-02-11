@@ -1,7 +1,8 @@
 import { lazy, Suspense } from "react";
 import Loader from "./components/Loader";
 
-const BokBok = lazy(() => import("./components/BokBok"));
+const WebRTCVideoChat = lazy(() => import("./components/group/WebRTCVideoChat"));
+// const BokBok = lazy(() => import("./components/BokBok"));
 const Welcome = lazy(() => import("./components/Welcome"));
 
 function App() {
@@ -18,9 +19,14 @@ function App() {
 
   return (
     <Suspense fallback={<Loader />}>
-      <BokBok bokBokId={bokBokId} />
+      <WebRTCVideoChat bokBokId={bokBokId} />
     </Suspense>
   );
+  // return (
+  //   <Suspense fallback={<Loader />}>
+  //     <BokBok bokBokId={bokBokId} />
+  //   </Suspense>
+  // );
 }
 
 export default App;
