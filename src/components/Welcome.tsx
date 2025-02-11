@@ -11,7 +11,11 @@ export default function Welcome() {
       toast.error("Please enter a meeting ID");
       return;
     }
-    window.location.href = "/?bokbok_id=" + id;
+    if (id.length < 4 && id.includes(" ")) {
+      toast.error("Meeting ID must be at least 4 characters and no spaces");
+      return;
+    }
+    window.location.href = "/" + id;
     // window.location.reload();
   };
 

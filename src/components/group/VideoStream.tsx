@@ -13,7 +13,7 @@ export default function VideoStream({ stream }: Props) {
       autoPlay
       muted
       playsInline
-      className="w-full aspect-video bg-zinc-900 rounded"
+      className="aspect-video bg-zinc-900 rounded"
       ref={videoRef}
     />
   );

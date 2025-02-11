@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { twMerge } from "tailwind-merge";
 import { ice_servers, media_constraints } from "../../consts";
 import { socket } from "../../socket";
 import Loader from "../Loader";
@@ -167,7 +166,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
     };
   }, [bokBokId]);
 
-  // console.log("bokBokId", bokBokId);
+  console.log("bokBokId", videoStreamList);
 
   const hidden = isSocketConnected ? "" : "hidden";
 
@@ -178,17 +177,15 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         className={`min-h-screen flex flex-col justify-center items-center ${hidden}`}
       >
         <div className="p-3 w-full h-full flex flex-wrap md:flex-nowrap justify-center items-center gap-4">
-          <div className=""></div>
-          <div
-            ref={videoGridRef}
-            className={twMerge(
-              "flex flex-wrap justify-center items-center gap-4",
-              "w-full md:flex-nowrap"
-            )}
-          >
+          <div className="">
             {isLocalVideoEnabled && localStream != null && (
               <VideoStream stream={localStream} />
             )}
+          </div>
+          <div
+            ref={videoGridRef}
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+          >
             {videoStreamList.map((stream, index) => (
               <VideoStream key={index} stream={stream} />
             ))}
