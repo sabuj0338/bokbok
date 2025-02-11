@@ -31,11 +31,12 @@ io.on("connection", (socket) => {
     if (!users[roomId]) users[roomId] = [];
     users[roomId].push(socket.id);
 
-    console.log(users);
+    console.log(users, socket.id);
 
     // Notify existing users
     users[roomId].forEach((peerId) => {
       if (peerId !== socket.id) {
+        console.log("inside foreach", peerId, socket.id)
         io.to(peerId).emit("user-joined", socket.id);
       }
     });
