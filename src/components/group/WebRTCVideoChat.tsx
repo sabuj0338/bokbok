@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
-import { media_constraints } from "../../consts";
+import { ice_servers, media_constraints } from "../../consts";
 import { socket } from "../../socket";
 import Loader from "../Loader";
 import VideoStream from "./VideoStream";
@@ -54,13 +54,11 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function createPeerConnection(peerId: any) {
     console.log("create peer connection", peerId);
-    const peerConnection = new RTCPeerConnection({
-      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-    });
+    const peerConnection = new RTCPeerConnection(ice_servers);
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
-        socket.emit("ice-candidate", peerId, event.candidate);
+        socket.emit("room:ice-candidate", peerId, event.candidate);
       }
     };
 
@@ -75,10 +73,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
     };
 
     // Attach local stream tracks to peer connection
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true,
-    });
+    const stream = await navigator.mediaDevices.getUserMedia(media_constraints);
     stream
       .getTracks()
       .forEach((track) => peerConnection.addTrack(track, stream));
@@ -103,14 +98,14 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
       setLocalStream(_localStream);
       setIsLocalVideoEnabled(true);
 
-      socket.on("user-joined", async (peerId) => {
-        console.log("user-joined", peerId);
+      socket.on("room:user-joined", async (peerId) => {
+        console.log("room:user-joined", peerId);
         const peerConnection = await createPeerConnection(peerId);
         peerConnectionListRef.current[peerId] = peerConnection;
 
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
-        socket.emit("offer", peerId, offer);
+        socket.emit("room:offer", peerId, offer);
 
         // localStreamRef.current?.getTracks().forEach((track) => track.stop());
         // localStreamRef.current = null;
@@ -119,8 +114,8 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         setIsLocalVideoEnabled(false);
       });
 
-      socket.on("offer", async (peerId, offer) => {
-        console.log("offer", peerId);
+      socket.on("room:offer", async (peerId, offer) => {
+        console.log("room:offer", peerId);
         const peerConnection = await createPeerConnection(peerId);
         peerConnectionListRef.current[peerId] = peerConnection;
 
@@ -129,7 +124,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         );
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
-        socket.emit("answer", peerId, answer);
+        socket.emit("room:answer", peerId, answer);
 
         // localStreamRef.current?.getTracks().forEach((track) => track.stop());
         // localStreamRef.current = null;
@@ -138,22 +133,22 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         setIsLocalVideoEnabled(false);
       });
 
-      socket.on("answer", async (peerId, answer) => {
-        console.log("answer", peerId);
+      socket.on("room:answer", async (peerId, answer) => {
+        console.log("room:answer", peerId);
         await peerConnectionListRef.current[peerId].setRemoteDescription(
           new RTCSessionDescription(answer)
         );
       });
 
-      socket.on("ice-candidate", (peerId, candidate) => {
-        console.log("ice-candidate", peerId);
+      socket.on("room:ice-candidate", (peerId, candidate) => {
+        console.log("room:ice-candidate", peerId);
         peerConnectionListRef.current[peerId].addIceCandidate(
           new RTCIceCandidate(candidate)
         );
       });
 
-      socket.on("user-left", (peerId) => {
-        console.log("user-left", peerId);
+      socket.on("room:user-left", (peerId) => {
+        console.log("room:user-left", peerId);
         if (peerConnectionListRef.current[peerId]) {
           peerConnectionListRef.current[peerId].close();
           peerConnectionListRef.current = peerConnectionListRef.current.filter(
