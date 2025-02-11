@@ -104,16 +104,16 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-    const roomId = Object.keys(users).find((roomId) =>
-      users[roomId].includes(socket.id)
-    );
-    if (roomId) {
-      users[roomId] = users[roomId].filter((id) => id !== socket.id);
-      io.to(roomId).emit("room:user-left", socket.id);
-    }
-  });
+  // socket.on("disconnect", () => {
+  //   console.log("User disconnected:", socket.id);
+  //   const roomId = Object.keys(users).find((roomId) =>
+  //     users[roomId].includes(socket.id)
+  //   );
+  //   if (roomId) {
+  //     users[roomId] = users[roomId].filter((id) => id !== socket.id);
+  //     io.to(roomId).emit("room:user-left", socket.id);
+  //   }
+  // });
 });
 
 server.listen(3000, () => {
