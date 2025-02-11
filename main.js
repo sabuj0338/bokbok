@@ -26,6 +26,39 @@ const users = {}; // Store connected users
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
+  socket.on("toggle-video", (data) => {
+    socket.broadcast.emit("toggle-video", data);
+  });
+
+  socket.on("toggle-audio", (data) => {
+    socket.broadcast.emit("toggle-audio", data);
+  });
+
+  socket.on("screen-share", (data) => {
+    socket.broadcast.emit("screen-share", data);
+  });
+
+  socket.on("hang-up", (data) => {
+    socket.broadcast.emit("hang-up", data);
+  });
+
+  socket.on("offer", (data) => {
+    socket.broadcast.emit("offer", data);
+  });
+
+  socket.on("answer", (data) => {
+    socket.broadcast.emit("answer", data);
+  });
+
+  socket.on("ice-candidate", (data) => {
+    socket.broadcast.emit("ice-candidate", data);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+
+  // group call
   socket.on("join-room", (roomId) => {
     console.log(`User joined room ${roomId}`);
     if (!users[roomId]) users[roomId] = [];
@@ -36,75 +69,43 @@ io.on("connection", (socket) => {
     // Notify existing users
     users[roomId].forEach((peerId) => {
       if (peerId !== socket.id) {
-        console.log("inside foreach", peerId, socket.id)
-        io.to(peerId).emit("user-joined", socket.id);
+        console.log("inside foreach", peerId, socket.id);
+        io.to(peerId).emit("room:user-joined", socket.id);
       }
     });
 
-    socket.on("toggle-video", (peerId, data) => {
-      io.to(peerId).emit("toggle-video", socket.id, data);
+    socket.on("room:toggle-video", (peerId, data) => {
+      io.to(peerId).emit("room:toggle-video", socket.id, data);
     });
 
-    socket.on("toggle-audio", (peerId, data) => {
-      io.to(peerId).emit("toggle-audio", socket.id, data);
+    socket.on("room:toggle-audio", (peerId, data) => {
+      io.to(peerId).emit("room:toggle-audio", socket.id, data);
     });
 
-    socket.on("screen-share", (peerId, data) => {
-      io.to(peerId).emit("screen-share", socket.id, data);
+    socket.on("room:screen-share", (peerId, data) => {
+      io.to(peerId).emit("room:screen-share", socket.id, data);
     });
 
-    socket.on("hang-up", (peerId, data) => {
-      io.to(peerId).emit("hang-up", socket.id, data);
+    socket.on("room:hang-up", (peerId, data) => {
+      io.to(peerId).emit("room:hang-up", socket.id, data);
     });
 
-    socket.on("offer", (peerId, offer) => {
-      io.to(peerId).emit("offer", socket.id, offer);
+    socket.on("room:offer", (peerId, offer) => {
+      io.to(peerId).emit("room:offer", socket.id, offer);
     });
 
-    socket.on("answer", (peerId, answer) => {
-      io.to(peerId).emit("answer", socket.id, answer);
+    socket.on("room:answer", (peerId, answer) => {
+      io.to(peerId).emit("room:answer", socket.id, answer);
     });
 
-    socket.on("ice-candidate", (peerId, candidate) => {
-      io.to(peerId).emit("ice-candidate", socket.id, candidate);
+    socket.on("room:ice-candidate", (peerId, candidate) => {
+      io.to(peerId).emit("room:ice-candidate", socket.id, candidate);
     });
 
     socket.on("disconnect", () => {
       users[roomId] = users[roomId].filter((id) => id !== socket.id);
-      io.to(roomId).emit("user-left", socket.id);
+      io.to(roomId).emit("room:user-left", socket.id);
     });
-
-    // socket.on("toggle-video", (data) => {
-    //   socket.broadcast.emit("toggle-video", data);
-    // });
-
-    // socket.on("toggle-audio", (data) => {
-    //   socket.broadcast.emit("toggle-audio", data);
-    // });
-
-    // socket.on("screen-share", (data) => {
-    //   socket.broadcast.emit("screen-share", data);
-    // });
-
-    // socket.on("hang-up", (data) => {
-    //   socket.broadcast.emit("hang-up", data);
-    // });
-
-    // socket.on("offer", (data) => {
-    //   socket.broadcast.emit("offer", data);
-    // });
-
-    // socket.on("answer", (data) => {
-    //   socket.broadcast.emit("answer", data);
-    // });
-
-    // socket.on("ice-candidate", (data) => {
-    //   socket.broadcast.emit("ice-candidate", data);
-    // });
-
-    // socket.on("disconnect", () => {
-    //   console.log("User disconnected:", socket.id);
-    // });
   });
 });
 
