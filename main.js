@@ -27,8 +27,11 @@ io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
   socket.on("join-room", (roomId) => {
+    console.log(`User joined room ${roomId}`);
     if (!users[roomId]) users[roomId] = [];
     users[roomId].push(socket.id);
+
+    console.log(users);
 
     // Notify existing users
     users[roomId].forEach((peerId) => {
