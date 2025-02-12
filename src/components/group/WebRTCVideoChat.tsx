@@ -445,9 +445,6 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
 
   return (
     <div className="container mx-auto">
-      <h1 className="text-3xl lg:text-4xl xl:text-5xl font-medium text-black dark:text-gray-100">
-        {socket.id}
-      </h1>
       {!isSocketConnected && <Loader />}
       <main
         className={`min-h-screen flex flex-col justify-center items-center ${hidden}`}
