@@ -148,10 +148,15 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
 
       socket.on("room:user-left", (peerId) => {
         console.log("room:user-left", peerId);
+        alert("User left");
         if (peerConnectionListRef.current[peerId]) {
           peerConnectionListRef.current[peerId].close();
-          peerConnectionListRef.current = peerConnectionListRef.current.filter(
-            (item) => item !== peerConnectionListRef.current[peerId]
+          // peerConnectionListRef.current = peerConnectionListRef.current.filter(
+          //   (item) => item !== peerConnectionListRef.current[peerId]
+          // );
+          delete peerConnectionListRef.current[peerId];
+          setVideoStreamList((prev) =>
+            prev.filter((stream) => stream.id !== peerId)
           );
         }
       });
