@@ -15,7 +15,7 @@ const io = new Server(server, {
 });
 app.use(
   cors({
-    origin: "*",
+    origin: ["http://localhost:5173", "https://bokbok-chi.vercel.app"],
     methods: ["GET", "POST"],
     credentials: true,
   })
