@@ -57,15 +57,14 @@ io.on("connection", (socket) => {
   // group call
   socket.on("join-room", (roomId) => {
     console.log(`User joined room ${roomId}`);
+    socket.join(roomId); // <-- Join the room
+
     if (!users[roomId]) users[roomId] = [];
     users[roomId].push(socket.id);
-
-    console.log(users, socket.id);
 
     // Notify existing users
     users[roomId].forEach((peerId) => {
       if (peerId !== socket.id) {
-        console.log("inside foreach", peerId, socket.id);
         io.to(peerId).emit("room:user-joined", socket.id);
       }
     });
