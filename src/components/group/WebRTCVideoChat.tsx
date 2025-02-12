@@ -116,10 +116,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
     peerConnection.ontrack = (event) => {
       // Check if this stream is already added
       setVideoStreamList((prev) => {
-        const isAlreadyAdded = prev.some(
-          (item) =>
-            item.peerId === peerId && item.stream.id === event.streams[0].id
-        );
+        const isAlreadyAdded = prev.some((item) => item.peerId === peerId);
         if (!isAlreadyAdded) {
           return [
             ...prev,
@@ -174,7 +171,8 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
   }, [isSocketConnected]);
 
   useEffect(() => {
-    console.log("use effect", socket.connected);
+    console.log("👉 use effect", socket.connected);
+
     socket.on("connect", () => setIsSocketConnected(true));
 
     socket.on("disconnect", () => setIsSocketConnected(false));
@@ -195,6 +193,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
 
       socket.on("room:offer", async (peerId, offer) => {
         console.log("room:offer", peerId);
+
         const peerConnection = await createPeerConnection(peerId);
         peerConnectionListRef.current[peerId] = peerConnection;
 
@@ -222,6 +221,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
 
       socket.on("room:user-left", (peerId) => {
         console.log("room:user-left", peerId);
+
         if (peerConnectionListRef.current[peerId]) {
           peerConnectionListRef.current[peerId].close();
           delete peerConnectionListRef.current[peerId];
@@ -241,7 +241,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
     initWebRTC();
 
     socket.on("room:user-toggle-video", (peerId, enabled) => {
-      console.log("👉 toggle remote video", peerId, enabled);
+      console.log("room:user-toggle-video", peerId, enabled);
 
       setVideoStreamList((prev) => {
         const remoteStream = prev.find((item) => item.peerId === peerId);
@@ -258,7 +258,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
     });
 
     socket.on("room:user-toggle-audio", (peerId, enabled) => {
-      console.log("👉 toggle remote audio", peerId, enabled);
+      console.log("room:user-toggle-audio", peerId, enabled);
 
       setVideoStreamList((prev) => {
         const remoteStream = prev.find((item) => item.peerId === peerId);
