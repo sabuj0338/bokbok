@@ -13,54 +13,23 @@ type Props = {
 
 export default function WebRTCVideoChat({ bokBokId }: Props) {
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
-  // const localVideoRef = useRef<HTMLVideoElement>(null);
-  // const localStreamRef = useRef<MediaStream | null>(null);
-  // const [localStream, setLocalStream] = useState<MediaStream | null>(null);
-
-  const videoGridRef = useRef<HTMLDivElement>(null);
-  const peerConnectionListRef = useRef<RTCPeerConnection[]>([]);
-  // const videoStreamListRef = useRef<MediaStream[]>([]);
+  const peerConnectionListRef = useRef<Record<string, RTCPeerConnection>>({});
+  // const streamList = useRef<VideoStreamType[]>([]);
   const [videoStreamList, setVideoStreamList] = useState<VideoStreamType[]>([]);
-
-  // const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  // const remoteStreamRef = useRef<MediaStream | null>(null);
-
-  // const screenShareVideoRef = useRef<HTMLVideoElement>(null);
-  // const screenShareStreamRef = useRef<MediaStream | null>(null);
-
-  // const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  // const recordedChunksRef = useRef<Blob[]>([]);
-
-  // const [isLocalVideoEnabled, setIsLocalVideoEnabled] = useState(true);
-  // const [isLocalAudioEnabled, setIsAudioEnabled] = useState(true);
-
-  // const [isRemoteVideoEnabled, setIsRemoteVideoEnabled] = useState(true);
-  // const [isRemoteAudioEnabled, setIsRemoteAudioEnabled] = useState(true);
-
-  // const [isScreenSharing, setIsScreenSharing] = useState(false);
-  // const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
-
-  // const [isRecording, setIsRecording] = useState(false);
-
-  // initialize the socket connection
-  async function onConnect() {
-    console.log("socket connected");
-    setIsSocketConnected(true);
-  }
-
-  async function onDisconnect() {
-    console.log("socket disconnected");
-    setIsSocketConnected(false);
-  }
+  const localStreamRef = useRef<MediaStream | null>(null);
 
   async function toggleAudio() {
     console.log("👉 toggle audio");
 
     const localStream = videoStreamList.find((item) => item.isLocal);
-    if (localStream) {
-      // console.log("👉 ", peerConnectionListRef.current, localStream.peerId);
-      localStream.stream.getAudioTracks()[0].enabled = !localStream.isAudioEnabled;
-      socket.emit("room:user-toggle-audio", localStream.peerId, !localStream.isAudioEnabled);
+    if (localStream && localStream.stream) {
+      localStream.stream.getAudioTracks()[0].enabled =
+        !localStream.isAudioEnabled;
+      socket.emit(
+        "room:user-toggle-audio",
+        localStream.peerId,
+        !localStream.isAudioEnabled
+      );
 
       setVideoStreamList((prev) => {
         return prev.map((item) => {
@@ -75,61 +44,65 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
 
   async function toggleVideo() {
     console.log("👉 toggle video");
-    const localStream = videoStreamList.find((item) => item.isLocal);
 
-    if (localStream) {
-      const videoTrack = localStream.stream.getVideoTracks()[0];
+    const localStreamIndex = videoStreamList.findIndex((item) => item.isLocal);
+    if (localStreamIndex === -1 || localStreamRef.current == null) return; // Local stream not found
+    const currentStream = videoStreamList[localStreamIndex]; // Local stream found
 
-      if (localStream.isVideoEnabled) {
-        videoTrack.stop(); // Stop the camera
-        setVideoStreamList((prev) => {
-          return prev.map((item) => {
-            if (item.peerId === localStream.peerId && item.isLocal) {
-              return { ...item, isVideoEnabled: false };
-            }
-            return item;
-          });
-        });
-        socket.emit("room:user-toggle-video", localStream.peerId, false);
-      } else {
-        const _newLocalStream = await navigator.mediaDevices.getUserMedia({
-          video: media_constraints.video,
-        });
-        setVideoStreamList((prev) => {
-          return prev.map((item) => {
-            if (item.peerId === localStream.peerId && item.isLocal) {
-              return { ...item, isVideoEnabled: true, stream: _newLocalStream };
-            }
-            return item;
-          });
-        });
-        socket.emit("room:user-toggle-video", localStream.peerId, true);
-      }
+    const videoTrack = localStreamRef.current.getVideoTracks()[0];
+
+    if (currentStream.isVideoEnabled) {
+      // Turn video OFF
+      videoTrack.stop();
+      localStreamRef.current.removeTrack(videoTrack);
+
+      setVideoStreamList((prev) => {
+        const newList = [...prev];
+        newList[localStreamIndex] = { ...currentStream, isVideoEnabled: false };
+        return newList;
+      });
+
+      socket.emit("room:user-toggle-video", currentStream.peerId, false);
+    } else {
+      // Turn video ON
+      const newLocalStream = await navigator.mediaDevices.getUserMedia({
+        video: media_constraints.video,
+      });
+      const newVideoTrack = newLocalStream.getVideoTracks()[0];
+      localStreamRef.current.addTrack(newVideoTrack);
+
+      Object.values(peerConnectionListRef.current).forEach((peerConnection) => {
+        const sender = peerConnection
+          .getSenders()
+          .find((s) => s.track?.kind === "video");
+        if (sender) {
+          sender.replaceTrack(newVideoTrack);
+        }
+      });
+
+      setVideoStreamList((prev) => {
+        const newList = [...prev];
+        newList[localStreamIndex] = {
+          ...currentStream,
+          isVideoEnabled: true,
+          stream: newLocalStream,
+        };
+        return newList;
+      });
+
+      socket.emit("room:user-toggle-video", currentStream.peerId, true);
     }
   }
 
   function hangUp(byClick?: boolean) {
-    // if (localStreamRef.current) {
-    //   localStreamRef.current.getTracks().forEach((track) => track.stop());
-    // }
-    // if (peerConnectionRef.current) {
-    //   peerConnectionRef.current.close();
-    // }
-    // if (mediaRecorderRef.current) {
-    //   mediaRecorderRef.current.stop();
-    // }
-    // setIsVideoEnabled(false);
-    // setIsAudioEnabled(false);
-    // setIsScreenSharing(false);
-    // setIsRemoteScreenSharing(false);
-    // setIsRecording(false);
-    if (byClick === true) socket.emit("hang-up");
+    if (byClick === true) socket.emit("room:user-hang-up");
     socket.disconnect();
     window.location.href = "/";
   }
 
   async function createPeerConnection(peerId: string) {
-    console.log("create peer connection", peerId);
+    console.log("👉 create peer connection", peerId);
+
     const peerConnection = new RTCPeerConnection(ice_servers);
 
     peerConnection.onicecandidate = (event) => {
@@ -138,11 +111,14 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
       }
     };
 
+    // add remote stream to videoStreamList,
+    // it fires when remote user add stream to peer connection
     peerConnection.ontrack = (event) => {
       // Check if this stream is already added
       setVideoStreamList((prev) => {
         const isAlreadyAdded = prev.some(
-          (item) => item.stream.id === event.streams[0].id
+          (item) =>
+            item.peerId === peerId && item.stream.id === event.streams[0].id
         );
         if (!isAlreadyAdded) {
           return [
@@ -159,11 +135,13 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
       });
     };
 
-    // Attach local stream tracks to peer connection
-    const stream = await navigator.mediaDevices.getUserMedia(media_constraints);
-    stream
-      .getTracks()
-      .forEach((track) => peerConnection.addTrack(track, stream));
+    // Attach local stream only once
+    const _localStream = localStreamRef.current;
+    if (_localStream) {
+      _localStream
+        .getTracks()
+        .forEach((track) => peerConnection.addTrack(track, _localStream));
+    }
 
     return peerConnection;
   }
@@ -172,6 +150,9 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
     const _localStream = await navigator.mediaDevices.getUserMedia(
       media_constraints
     );
+
+    // store local stream
+    localStreamRef.current = _localStream;
 
     // Add local stream to videoStreamList
     setVideoStreamList((prev) => [
@@ -187,36 +168,29 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
   }
 
   useEffect(() => {
-    if(isSocketConnected) {
-      // console.log("localStreamInit", socket.connected, socket.id);
+    if (isSocketConnected) {
       localStreamInit(socket.id as string);
     }
-  },[isSocketConnected])
+  }, [isSocketConnected]);
 
   useEffect(() => {
     console.log("use effect", socket.connected);
-    socket.on("connect", onConnect);
+    socket.on("connect", () => setIsSocketConnected(true));
 
-    socket.on("disconnect", onDisconnect);
-
-    // socket.on("hang-up", hangUp);
+    socket.on("disconnect", () => setIsSocketConnected(false));
 
     const initWebRTC = async () => {
       socket.emit("join-room", bokBokId);
 
-      // localStreamInit(socket.id as string);
-
       socket.on("room:user-joined", async (peerId) => {
         console.log("room:user-joined", peerId);
-        // Check if a connection already exists
-        if (!peerConnectionListRef.current[peerId]) {
-          const peerConnection = await createPeerConnection(peerId);
-          peerConnectionListRef.current[peerId] = peerConnection;
 
-          const offer = await peerConnection.createOffer();
-          await peerConnection.setLocalDescription(offer);
-          socket.emit("room:offer", peerId, offer);
-        }
+        const peerConnection = await createPeerConnection(peerId);
+        peerConnectionListRef.current[peerId] = peerConnection;
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        socket.emit("room:offer", peerId, offer);
       });
 
       socket.on("room:offer", async (peerId, offer) => {
@@ -230,9 +204,6 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
         socket.emit("room:answer", peerId, answer);
-
-        // setLocalStream(null);
-        // setIsLocalVideoEnabled(false);
       });
 
       socket.on("room:answer", async (peerId, answer) => {
@@ -259,7 +230,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         setVideoStreamList((prev) => {
           // Stop all tracks of the stream before removal
           const streamToRemove = prev.find((item) => item.peerId === peerId);
-          streamToRemove?.stream.getTracks().forEach((track) => track.stop());
+          streamToRemove?.stream?.getTracks().forEach((track) => track.stop());
 
           // Filter out the stream of the disconnected peer
           return prev.filter((item) => item.peerId !== peerId);
@@ -271,10 +242,10 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
 
     socket.on("room:user-toggle-video", (peerId, enabled) => {
       console.log("👉 toggle remote video", peerId, enabled);
-    
+
       setVideoStreamList((prev) => {
         const remoteStream = prev.find((item) => item.peerId === peerId);
-        if (remoteStream) {
+        if (remoteStream && remoteStream.stream) {
           remoteStream.stream.getVideoTracks()[0].enabled = enabled;
         }
         return prev.map((item) => {
@@ -285,13 +256,13 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         });
       });
     });
-    
+
     socket.on("room:user-toggle-audio", (peerId, enabled) => {
       console.log("👉 toggle remote audio", peerId, enabled);
-    
+
       setVideoStreamList((prev) => {
         const remoteStream = prev.find((item) => item.peerId === peerId);
-        if (remoteStream) {
+        if (remoteStream && remoteStream.stream) {
           remoteStream.stream.getAudioTracks()[0].enabled = enabled;
         }
         return prev.map((item) => {
@@ -304,13 +275,11 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
     });
 
     return () => {
-      socket.off("connect", onConnect);
-      socket.off("disconnect", onDisconnect);
       socket.disconnect();
     };
   }, [bokBokId]);
 
-  console.log("bokBokId", videoStreamList);
+  console.log("bokBokId", videoStreamList, peerConnectionListRef.current);
 
   const hidden = isSocketConnected ? "" : "hidden";
   const localVideoStream = videoStreamList.find((item) => item.isLocal);
@@ -325,7 +294,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         className={`min-h-screen flex flex-col justify-center items-center ${hidden}`}
       >
         <div className="p-3 w-full h-full flex flex-wrap md:flex-nowrap justify-center items-center gap-4">
-          <div ref={videoGridRef} className="w-full grid grid-cols-1 gap-4">
+          <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {videoStreamList.map((item, index) => (
               <VideoStream key={item.peerId + index} videoStream={item} />
             ))}

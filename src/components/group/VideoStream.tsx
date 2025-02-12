@@ -11,7 +11,7 @@ export default function VideoStream({ videoStream }: Props) {
   return (
     <div className="relative w-full aspect-video bg-zinc-900 rounded">
       <video
-        id={videoStream.stream.id}
+        id={videoStream.stream?.id}
         autoPlay
         playsInline
         // muted={isAudioOn}
