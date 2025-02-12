@@ -279,6 +279,29 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         .forEach((track) => peerConnection.addTrack(track, _localStream));
     }
 
+    const sender = peerConnection
+      .getSenders()
+      .find((s) => s.track?.kind === "video");
+    if (sender) {
+      const params = sender.getParameters();
+      // params.encodings[0].maxBitrate = bitrate * 1000;
+      params.encodings = [
+        {
+          rid: "high",
+          maxBitrate: 2500000,
+        }, // High quality
+        {
+          rid: "mid",
+          maxBitrate: 1000000,
+        }, // Medium quality
+        {
+          rid: "low",
+          maxBitrate: 300000,
+        }, // Low quality
+      ];
+      await sender.setParameters(params);
+    }
+
     return peerConnection;
   }
 
