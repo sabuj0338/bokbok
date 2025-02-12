@@ -63,10 +63,16 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
     };
 
     peerConnection.ontrack = (event) => {
-      setVideoStreamList((prev) => [
-        ...prev,
-        { peerId, stream: event.streams[0] },
-      ]);
+      // Check if this stream is already added
+      setVideoStreamList((prev) => {
+        const isAlreadyAdded = prev.some(
+          (item) => item.stream.id === event.streams[0].id
+        );
+        if (!isAlreadyAdded) {
+          return [...prev, { peerId, stream: event.streams[0] }];
+        }
+        return prev;
+      });
     };
 
     // Attach local stream tracks to peer connection
@@ -109,15 +115,15 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
 
       socket.on("room:user-joined", async (peerId) => {
         console.log("room:user-joined", peerId);
-        const peerConnection = await createPeerConnection(peerId);
-        peerConnectionListRef.current[peerId] = peerConnection;
+        // Check if a connection already exists
+        if (!peerConnectionListRef.current[peerId]) {
+          const peerConnection = await createPeerConnection(peerId);
+          peerConnectionListRef.current[peerId] = peerConnection;
 
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        socket.emit("room:offer", peerId, offer);
-
-        // setLocalStream(null);
-        // setIsLocalVideoEnabled(false);
+          const offer = await peerConnection.createOffer();
+          await peerConnection.setLocalDescription(offer);
+          socket.emit("room:offer", peerId, offer);
+        }
       });
 
       socket.on("room:offer", async (peerId, offer) => {
