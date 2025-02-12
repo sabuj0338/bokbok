@@ -12,7 +12,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
   // const localVideoRef = useRef<HTMLVideoElement>(null);
   // const localStreamRef = useRef<MediaStream | null>(null);
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  // const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
   const videoGridRef = useRef<HTMLDivElement>(null);
   const peerConnectionListRef = useRef<RTCPeerConnection[]>([]);
@@ -30,7 +30,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
   // const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   // const recordedChunksRef = useRef<Blob[]>([]);
 
-  const [isLocalVideoEnabled, setIsLocalVideoEnabled] = useState(true);
+  // const [isLocalVideoEnabled, setIsLocalVideoEnabled] = useState(true);
   // const [isLocalAudioEnabled, setIsAudioEnabled] = useState(true);
 
   // const [isRemoteVideoEnabled, setIsRemoteVideoEnabled] = useState(true);
@@ -91,15 +91,21 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         const _localStream = await navigator.mediaDevices.getUserMedia(
           media_constraints
         );
-        setLocalStream(_localStream);
-        setIsLocalVideoEnabled(true);
+        // setLocalStream(_localStream);
+        // setIsLocalVideoEnabled(true);
+
+        // Add local stream to videoStreamList
+        setVideoStreamList((prev) => [
+          ...prev,
+          { peerId: socket.id as string, stream: _localStream },
+        ]);
       }
     }
 
     const initWebRTC = async () => {
       socket.emit("join-room", bokBokId);
 
-      localStreamInit()
+      localStreamInit();
 
       socket.on("room:user-joined", async (peerId) => {
         console.log("room:user-joined", peerId);
@@ -110,8 +116,8 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         await peerConnection.setLocalDescription(offer);
         socket.emit("room:offer", peerId, offer);
 
-        setLocalStream(null);
-        setIsLocalVideoEnabled(false);
+        // setLocalStream(null);
+        // setIsLocalVideoEnabled(false);
       });
 
       socket.on("room:offer", async (peerId, offer) => {
@@ -126,8 +132,8 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         await peerConnection.setLocalDescription(answer);
         socket.emit("room:answer", peerId, answer);
 
-        setLocalStream(null);
-        setIsLocalVideoEnabled(false);
+        // setLocalStream(null);
+        // setIsLocalVideoEnabled(false);
       });
 
       socket.on("room:answer", async (peerId, answer) => {
@@ -159,7 +165,6 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
           // Filter out the stream of the disconnected peer
           return prev.filter((item) => item.peerId !== peerId);
         });
-        localStreamInit()
       });
     };
 
@@ -186,11 +191,11 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         className={`min-h-screen flex flex-col justify-center items-center ${hidden}`}
       >
         <div className="p-3 w-full h-full flex flex-wrap md:flex-nowrap justify-center items-center gap-4">
-          <div className="">
+          {/* <div className="">
             {isLocalVideoEnabled && localStream != null && (
               <VideoStream stream={localStream} />
             )}
-          </div>
+          </div> */}
           <div ref={videoGridRef} className="w-full grid grid-cols-1 gap-4">
             {videoStreamList.map(({ peerId, stream }, index) => (
               <VideoStream key={peerId + index} stream={stream} />
