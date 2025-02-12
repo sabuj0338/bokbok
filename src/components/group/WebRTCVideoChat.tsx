@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { twMerge } from "tailwind-merge";
 import { ice_servers, media_constraints } from "../../consts";
 import { socket } from "../../socket";
 import AudioIconButton from "../AudioIconButton";
 import HangUpIconButton from "../HangUpIconButton";
 import Loader from "../Loader";
+import ShareScreenIconButton from "../ShareScreenIconButton";
+import Video from "../Video";
 import VideoIconButton from "../VideoIconButton";
 import VideoStream from "./VideoStream";
 
@@ -17,6 +20,105 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
   // const streamList = useRef<VideoStreamType[]>([]);
   const [videoStreamList, setVideoStreamList] = useState<VideoStreamType[]>([]);
   const localStreamRef = useRef<MediaStream | null>(null);
+
+  const screenShareVideoRef = useRef<HTMLVideoElement>(null);
+  const screenShareStreamRef = useRef<MediaStream | null>(null);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+  // const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
+
+  async function toggleScreenShare() {
+    const localStream = localStreamRef.current;
+    if (!localStream) return;
+
+    if (!isScreenSharing) {
+      try {
+        const screenShareStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+        });
+        screenShareStreamRef.current = screenShareStream;
+        // Show screen share in a separate video element
+        if (screenShareVideoRef.current) {
+          screenShareVideoRef.current.srcObject = screenShareStream;
+        }
+        // Replace video track in WebRTC connection
+        const screenTrack = screenShareStream.getVideoTracks()[0];
+
+        // Replace video track with screen track
+        Object.values(peerConnectionListRef.current).forEach(
+          (peerConnection) => {
+            const sender = peerConnection
+              .getSenders()
+              .find((s) => s.track?.kind === "video");
+            if (sender) {
+              sender.replaceTrack(screenTrack);
+            }
+          }
+        );
+
+        // Force renegotiation to update peers
+        // await Promise.all(
+        //   Object.values(peerConnectionListRef.current).map(
+        //     async (peerConnection) => {
+        //       const offer = await peerConnection.createOffer();
+        //       await peerConnection.setLocalDescription(offer);
+        //       socket.emit("room:offer", socket.id, offer);
+        //     }
+        //   )
+        // );
+
+        // Notify peers about screen sharing
+        socket.emit("room:user-screen-share", socket.id, true);
+
+        // Handle stop sharing event
+        screenTrack.onended = () => {
+          stopScreenShare();
+        };
+
+        setIsScreenSharing(true);
+      } catch (error) {
+        console.error("Error starting screen sharing", error);
+      }
+    } else {
+      stopScreenShare();
+    }
+  }
+
+  // Stop Screen Sharing
+  async function stopScreenShare() {
+    if (screenShareStreamRef.current) {
+      screenShareStreamRef.current.getTracks().forEach((track) => track.stop());
+      screenShareStreamRef.current = null;
+    }
+
+    // Switch back to the camera stream
+    if (localStreamRef.current) {
+      const newVideoTrack = localStreamRef.current.getVideoTracks()[0];
+      Object.values(peerConnectionListRef.current).forEach((peerConnection) => {
+        const sender = peerConnection
+          .getSenders()
+          .find((s) => s.track?.kind === "video");
+        if (sender) sender.replaceTrack(newVideoTrack);
+      });
+
+      // turn off video
+      toggleVideo();
+      // Force renegotiation to update peers
+      // await Promise.all(
+      //   Object.values(peerConnectionListRef.current).map(
+      //     async (peerConnection) => {
+      //       const offer = await peerConnection.createOffer();
+      //       await peerConnection.setLocalDescription(offer);
+      //       socket.emit("room:offer", socket.id, offer);
+      //     }
+      //   )
+      // );
+    }
+
+    // Notify peers that screen sharing stopped
+    socket.emit("room:user-screen-share", socket.id, false);
+
+    setIsScreenSharing(false);
+  }
 
   async function toggleAudio() {
     console.log("👉 toggle audio");
@@ -95,6 +197,9 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
   }
 
   function hangUp(byClick?: boolean) {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+    }
     if (byClick === true) socket.emit("room:user-hang-up");
     socket.disconnect();
     window.location.href = "/";
@@ -116,7 +221,10 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
     peerConnection.ontrack = (event) => {
       // Check if this stream is already added
       setVideoStreamList((prev) => {
-        const isAlreadyAdded = prev.some((item) => item.peerId === peerId);
+        const isAlreadyAdded = prev.some(
+          (item) =>
+            item.peerId === peerId && item.stream.id === event.streams[0].id
+        );
         if (!isAlreadyAdded) {
           return [
             ...prev,
@@ -130,6 +238,37 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         }
         return prev;
       });
+    };
+
+    peerConnection.oniceconnectionstatechange = async () => {
+      if (!peerConnection || peerConnection.iceConnectionState === "closed")
+        return;
+      if (peerConnection.iceConnectionState === "disconnected") {
+        console.warn("Peer disconnected! Attempting to reconnect...");
+
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        socket.emit("room:user-reconnect-offer", peerId, offer);
+      }
+    };
+
+    peerConnection.onconnectionstatechange = async () => {
+      if (peerConnection.connectionState === "failed") {
+        console.error("Connection failed! Resetting...");
+
+        if (peerConnectionListRef.current[peerId]) {
+          peerConnectionListRef.current[peerId].close();
+          delete peerConnectionListRef.current[peerId];
+        }
+        // createPeerConnection(peerId);
+      }
+    };
+
+    // Handle offer/answer exchange
+    peerConnection.onnegotiationneeded = async () => {
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit("room:offer", peerId, offer);
     };
 
     // Attach local stream only once
@@ -236,6 +375,20 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
           return prev.filter((item) => item.peerId !== peerId);
         });
       });
+
+      // Handle receiving a remote screen share signal
+      socket.on("room:user-screen-share", (peerId, isSharing) => {
+        console.log("room:user-screen-share", isSharing, peerId);
+
+        setVideoStreamList((prev) => {
+          return prev.map((item) => {
+            if (item.peerId === peerId) {
+              return { ...item, isVideoEnabled: isSharing };
+            }
+            return item;
+          });
+        });
+      });
     };
 
     initWebRTC();
@@ -275,6 +428,12 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
     });
 
     return () => {
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      socket.off("connect");
+      socket.off("disconnect");
+      // setIsScreenSharing(false);
       socket.disconnect();
     };
   }, [bokBokId]);
@@ -294,7 +453,24 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
         className={`min-h-screen flex flex-col justify-center items-center ${hidden}`}
       >
         <div className="p-3 w-full h-full flex flex-wrap md:flex-nowrap justify-center items-center gap-4">
-          <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={`w-full md:w-4/5 ${isScreenSharing ? "" : "hidden"}`}>
+            <Video
+              id="screenShareVideo"
+              isVideoEnabled={isScreenSharing}
+              isAudioEnabled={false}
+              videoRef={screenShareVideoRef}
+              className={`border border-zinc-600`}
+            />
+          </div>
+
+          <div
+            className={twMerge(
+              "grid grid-cols-1 gap-4",
+              isScreenSharing
+                ? "w-full md:w-1/5"
+                : "w-full md:grid-cols-2 lg:grid-cols-3"
+            )}
+          >
             {videoStreamList.map((item, index) => (
               <VideoStream key={item.peerId + index} videoStream={item} />
             ))}
@@ -320,10 +496,12 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
               onClick={toggleVideo}
             />
           )}
-          {/* <ShareScreenIconButton
-            status={isScreenSharing}
-            onClick={toggleScreenShare}
-          /> */}
+          {localVideoStream && (
+            <ShareScreenIconButton
+              status={isScreenSharing}
+              onClick={toggleScreenShare}
+            />
+          )}
           <HangUpIconButton onClick={() => hangUp(true)} />
         </div>
       </nav>

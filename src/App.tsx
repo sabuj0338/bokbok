@@ -4,7 +4,7 @@ import Loader from "./components/Loader";
 const WebRTCVideoChat = lazy(
   () => import("./components/group/WebRTCVideoChat")
 );
-const BokBok = lazy(() => import("./components/BokBok"));
+// const BokBok = lazy(() => import("./components/BokBok"));
 const Welcome = lazy(() => import("./components/Welcome"));
 
 function App() {
@@ -29,13 +29,13 @@ function App() {
     );
   }
 
-  if (bokBokId.length < 10) {
-    return (
-      <Suspense fallback={<Loader />}>
-        <BokBok bokBokId={bokBokId} />
-      </Suspense>
-    );
-  }
+  // if (bokBokId.length < 10) {
+  //   return (
+  //     <Suspense fallback={<Loader />}>
+  //       <BokBok bokBokId={bokBokId} />
+  //     </Suspense>
+  //   );
+  // }
 
   return (
     <Suspense fallback={<Loader />}>
