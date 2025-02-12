@@ -41,7 +41,7 @@ export default function Welcome() {
               />
               <button
                 onClick={handleGetStarted}
-                className="absolute right-0 py-3 lg:py-4 px-12 lg:px-16 text-white-500 font-semibold rounded-full bg-green-500  active:bg-green-600 hover:shadow-green-md transition-all outline-none cursor-pointer focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-900 focus:ring-green-500 focus:outline-none"
+                className="absolute right-0 py-3 lg:py-4 px-6 lg:px-16 text-white-500 font-semibold rounded-full bg-green-500  active:bg-green-600 hover:shadow-green-md transition-all outline-none cursor-pointer focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-900 focus:ring-green-500 focus:outline-none"
               >
                 Get Started
               </button>
