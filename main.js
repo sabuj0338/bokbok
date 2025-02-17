@@ -70,23 +70,19 @@ io.on("connection", (socket) => {
     });
 
     socket.on("room:user-toggle-video", (peerId, data) => {
-      // io.to(peerId).emit("room:user-toggle-video", socket.id, data);
       socket.broadcast.to(roomId).emit("room:user-toggle-video", peerId, data);
     });
 
     socket.on("room:user-toggle-audio", (peerId, data) => {
-      //io.to(peerId).emit("room:user-toggle-audio", socket.id, data);
       socket.broadcast.to(roomId).emit("room:user-toggle-audio", peerId, data);
     });
 
-    socket.on("room:user-screen-share", (peerId, data) => {
-      //io.to(peerId).emit("room:user-screen-share", socket.id, data);
-      socket.broadcast.to(roomId).emit("room:user-screen-share", peerId, data);
+    socket.on("room:user-screen-share", (screenTrackId, isSharing) => {
+      socket.broadcast.to(roomId).emit("room:user-screen-share", screenTrackId, isSharing);
     });
 
-    socket.on("room:user-hang-up", (peerId, data) => {
-      //io.to(peerId).emit("room:user-hang-up", socket.id, data);
-      socket.broadcast.to(roomId).emit("room:user-hang-up", peerId, data);
+    socket.on("room:user-hang-up", (peerId) => {
+      socket.broadcast.to(roomId).emit("room:user-hang-up", peerId);
     });
 
     socket.on("room:offer", (peerId, offer) => {
@@ -105,7 +101,6 @@ io.on("connection", (socket) => {
       console.log("User disconnected:", roomId, socket.id);
       socket.broadcast.to(roomId).emit("room:user-left", socket.id);
       users[roomId] = users[roomId].filter((id) => id !== socket.id);
-      // io.to(roomId).emit("room:user-left", socket.id);
     });
   });
 });
