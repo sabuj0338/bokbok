@@ -4,6 +4,7 @@ import { ice_servers, media_constraints } from "../../consts";
 import { socket } from "../../socket";
 import AudioIconButton from "../AudioIconButton";
 import HangUpIconButton from "../HangUpIconButton";
+import Header from "../Header";
 import Loader from "../Loader";
 import ShareScreenIconButton from "../ShareScreenIconButton";
 import Video from "../Video";
@@ -11,10 +12,10 @@ import VideoIconButton from "../VideoIconButton";
 import VideoStream from "./VideoStream";
 
 type Props = {
-  bokBokId: string;
+  roomId: string;
 };
 
-export default function WebRTCVideoChat({ bokBokId }: Props) {
+export default function WebRTCVideoChat({ roomId }: Props) {
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
   const peerConnectionListRef = useRef<Record<string, RTCPeerConnection>>({});
   // const streamList = useRef<VideoStreamType[]>([]);
@@ -317,7 +318,7 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
     socket.on("disconnect", () => setIsSocketConnected(false));
 
     const initWebRTC = async () => {
-      socket.emit("join-room", bokBokId);
+      socket.emit("join-room", roomId);
 
       socket.on("room:user-joined", async (peerId) => {
         console.log("room:user-joined", peerId);
@@ -436,21 +437,22 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
       // setIsScreenSharing(false);
       socket.disconnect();
     };
-  }, [bokBokId]);
+  }, [roomId]);
 
-  console.log("bokBokId", videoStreamList, peerConnectionListRef.current);
+  console.log("roomId", videoStreamList, peerConnectionListRef.current);
 
   const hidden = isSocketConnected ? "" : "hidden";
   const localVideoStream = videoStreamList.find((item) => item.isLocal);
 
   return (
     <div className="container mx-auto">
+      <Header socketId={socket.id as string} roomId={roomId} />
       {!isSocketConnected && <Loader />}
       <main
         className={`min-h-screen flex flex-col justify-center items-center ${hidden}`}
       >
-        <div className="p-3 w-full h-full flex flex-wrap md:flex-nowrap justify-center items-center gap-4">
-          <div className={`w-full md:w-4/5 ${isScreenSharing ? "" : "hidden"}`}>
+        <div className="w-full h-full flex flex-wrap md:flex-nowrap justify-center items-center gap-4">
+          <div className={`w-full sm:w-4/5 ${isScreenSharing ? "" : "hidden"}`}>
             <Video
               id="screenShareVideo"
               isVideoEnabled={isScreenSharing}
@@ -464,8 +466,8 @@ export default function WebRTCVideoChat({ bokBokId }: Props) {
             className={twMerge(
               "grid grid-cols-1 gap-4",
               isScreenSharing
-                ? "w-full md:w-1/5"
-                : "w-full md:grid-cols-2 lg:grid-cols-3"
+                ? "w-full sm:w-1/5"
+                : "w-full sm:grid-cols-2 lg:grid-cols-3"
             )}
           >
             {videoStreamList.map((item, index) => (

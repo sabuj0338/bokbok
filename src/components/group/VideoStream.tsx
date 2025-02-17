@@ -9,7 +9,7 @@ export default function VideoStream({ videoStream }: Props) {
     videoRef.current!.srcObject = videoStream.stream;
   });
   return (
-    <div className="relative w-full aspect-video bg-zinc-900 rounded">
+    <div className="relative w-full aspect-video bg-zinc-900 rounded border-2 border-zinc-700 hover:border-zinc-400">
       <video
         id={videoStream.stream?.id}
         autoPlay

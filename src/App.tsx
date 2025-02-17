@@ -8,9 +8,9 @@ const BokBok = lazy(() => import("./components/BokBok"));
 const Welcome = lazy(() => import("./components/Welcome"));
 
 function App() {
-  const bokBokId = window.location.pathname.split("/").pop();
+  const roomId = window.location.pathname.split("/").pop();
 
-  if (!bokBokId) {
+  if (!roomId) {
     return (
       <Suspense fallback={<Loader />}>
         <Welcome />
@@ -18,7 +18,7 @@ function App() {
     );
   }
 
-  if (bokBokId.length < 4) {
+  if (roomId.length < 4) {
     return (
       <div className="w-full h-full min-h-screen text-gray-100 dark:text-white flex justify-center items-center flex-col">
         <h1>Invalid Meeting ID</h1>
@@ -29,17 +29,17 @@ function App() {
     );
   }
 
-  if (bokBokId.length < 10) {
+  if (roomId === "one-to-one") {
     return (
       <Suspense fallback={<Loader />}>
-        <BokBok bokBokId={bokBokId} />
+        <BokBok />
       </Suspense>
     );
   }
 
   return (
     <Suspense fallback={<Loader />}>
-      <WebRTCVideoChat bokBokId={bokBokId} />
+      <WebRTCVideoChat roomId={roomId} />
     </Suspense>
   );
 }

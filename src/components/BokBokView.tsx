@@ -2,6 +2,7 @@ import React from "react";
 import { twMerge } from "tailwind-merge";
 import AudioIconButton from "./AudioIconButton";
 import HangUpIconButton from "./HangUpIconButton";
+import Header from "./Header";
 import Loader from "./Loader";
 import RecordIconButton from "./RecordIconButton";
 import ShareScreenIconButton from "./ShareScreenIconButton";
@@ -9,6 +10,7 @@ import Video from "./Video";
 import VideoIconButton from "./VideoIconButton";
 
 type Props = {
+  socketId: string;
   isVideoEnabled: boolean;
   isAudioEnabled: boolean;
   isRemoteVideoEnabled: boolean;
@@ -28,6 +30,7 @@ type Props = {
 };
 
 export default function BokBokView({
+  socketId,
   isVideoEnabled,
   isAudioEnabled,
   isRemoteVideoEnabled,
@@ -49,6 +52,7 @@ Props) {
   const hidden = isSocketConnected ? "" : "hidden";
   return (
     <div className="container mx-auto">
+      <Header socketId={socketId}/>
       {!isSocketConnected && <Loader />}
       <main
         className={`min-h-screen flex flex-col justify-center items-center ${hidden}`}

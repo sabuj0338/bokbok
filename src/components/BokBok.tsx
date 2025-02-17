@@ -3,11 +3,7 @@ import { ice_servers, media_constraints } from "../consts";
 import { socket } from "../socket";
 import BokBokView from "./BokBokView";
 
-type Props = {
-  bokBokId: string;
-};
-
-export default function BokBok({ bokBokId }: Props) {
+export default function BokBok() {
   const [isSocketConnected, setIsSocketConnected] = useState(socket.connected);
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
@@ -364,10 +360,9 @@ export default function BokBok({ bokBokId }: Props) {
     window.location.href = "/";
   }
 
-  console.log("bokBokId", bokBokId);
-
   return (
     <BokBokView
+      socketId={socket.id as string}
       isVideoEnabled={isVideoEnabled}
       isAudioEnabled={isAudioEnabled}
       isRemoteVideoEnabled={isRemoteVideoEnabled}

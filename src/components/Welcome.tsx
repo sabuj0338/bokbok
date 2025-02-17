@@ -19,6 +19,10 @@ export default function Welcome() {
     // window.location.reload();
   };
 
+  const handleGetStartedOneToOne = () => {
+    window.location.href = "/one-to-one";
+  };
+
   return (
     <div className="max-w-screen-xl mt-24 px-8 xl:px-16 mx-auto" id="welcome">
       <div>
@@ -36,7 +40,7 @@ export default function Welcome() {
                 ref={inputRef}
                 type="text"
                 name=""
-                className="w-full bg-gray-900 rounded-full py-3 lg:py-4 px-4 lg:px-6 text-white placeholder:text-gray-500 focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-900 focus:ring-green-500 focus:outline-none"
+                className="w-full bg-zinc-200 dark:bg-gray-900 rounded-full py-3 lg:py-4 px-4 lg:px-6 text-zinc-900 dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-900 focus:ring-green-500 focus:outline-none"
                 placeholder="Enter meeting ID"
               />
               <button
@@ -46,6 +50,12 @@ export default function Welcome() {
                 Get Started
               </button>
             </div>
+            <button
+              onClick={handleGetStartedOneToOne}
+              className="w-full mt-4 py-3 lg:py-4 px-6 lg:px-16 text-white-500 font-semibold rounded-full bg-green-500  active:bg-green-600 hover:shadow-green-md transition-all outline-none cursor-pointer focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-900 focus:ring-green-500 focus:outline-none"
+            >
+              One-To-One
+            </button>
           </div>
           <div className="w-full flex justify-center items-center p-5">
             <img
