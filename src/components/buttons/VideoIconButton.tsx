@@ -7,7 +7,7 @@ export default function VideoIconButton({ status, onClick }: Props) {
     <button
       type="button"
       onClick={onClick}
-      className="cursor-pointer px-3 py-3 text-zinc-300 bg-zinc-700 rounded-full hover:bg-zinc-600 active:bg-zinc-700"
+      className="cursor-pointer px-3 py-3 text-zinc-700 dark:text-zinc-300 bg-zinc-400 dark:bg-zinc-700 rounded-full hover:bg-zinc-300 dark:hover:bg-zinc-600 active:bg-zinc-400 dark:active:bg-zinc-700"
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"

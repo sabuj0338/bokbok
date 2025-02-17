@@ -6,7 +6,7 @@ type Props = {
 export default function RecordIconButton({ status, onClick }: Props) {
   const className = status
     ? "cursor-pointer px-3 py-3 text-rose-300 bg-rose-700 rounded-full hover:bg-rose-600 active:bg-rose-700 opacity-50"
-    : "cursor-pointer px-3 py-3 text-zinc-300 bg-zinc-700 rounded-full hover:bg-zinc-600 active:bg-zinc-700";
+    : "cursor-pointer px-3 py-3 text-zinc-700 dark:text-zinc-300 bg-zinc-400 dark:bg-zinc-700 rounded-full hover:bg-zinc-300 dark:hover:bg-zinc-600 active:bg-zinc-400 dark:active:bg-zinc-700";
 
   return (
     <button type="button" onClick={onClick} className={className}>

@@ -2,13 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
 import { ice_servers, media_constraints } from "../../consts";
 import { socket } from "../../socket";
-import AudioIconButton from "../AudioIconButton";
-import HangUpIconButton from "../HangUpIconButton";
+import AudioIconButton from "../buttons/AudioIconButton";
+import HangUpIconButton from "../buttons/HangUpIconButton";
+import ShareScreenIconButton from "../buttons/ShareScreenIconButton";
+import VideoIconButton from "../buttons/VideoIconButton";
 import Header from "../Header";
 import Loader from "../Loader";
-import ShareScreenIconButton from "../ShareScreenIconButton";
 import Video from "../Video";
-import VideoIconButton from "../VideoIconButton";
 import VideoStream from "./VideoStream";
 
 type Props = {
@@ -474,7 +474,7 @@ export default function WebRTCVideoChat({ roomId }: Props) {
       </main>
 
       <nav className="w-full flex justify-center items-center fixed bottom-8 left-0 right-0">
-        <div className="py-3 px-4 inline-flex flex-wrap justify-center gap-2 bg-zinc-800 rounded-full">
+        <div className="py-3 px-4 inline-flex flex-wrap justify-center gap-2 bg-zinc-200 dark:bg-zinc-800 rounded-full">
           {/* <RecordIconButton
             status={isRecording}
             onClick={startScreenRecording}

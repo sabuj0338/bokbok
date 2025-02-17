@@ -1,13 +1,13 @@
 import React from "react";
 import { twMerge } from "tailwind-merge";
-import AudioIconButton from "./AudioIconButton";
-import HangUpIconButton from "./HangUpIconButton";
+import AudioIconButton from "./buttons/AudioIconButton";
+import HangUpIconButton from "./buttons/HangUpIconButton";
+import RecordIconButton from "./buttons/RecordIconButton";
+import ShareScreenIconButton from "./buttons/ShareScreenIconButton";
+import VideoIconButton from "./buttons/VideoIconButton";
 import Header from "./Header";
 import Loader from "./Loader";
-import RecordIconButton from "./RecordIconButton";
-import ShareScreenIconButton from "./ShareScreenIconButton";
 import Video from "./Video";
-import VideoIconButton from "./VideoIconButton";
 
 type Props = {
   socketId: string;
@@ -92,7 +92,7 @@ Props) {
       </main>
 
       <nav className="w-full flex justify-center items-center fixed bottom-8 left-0 right-0">
-        <div className="py-3 px-4 inline-flex flex-wrap justify-center gap-2 bg-zinc-800 rounded-full">
+        <div className="py-3 px-4 inline-flex flex-wrap justify-center gap-2 bg-zinc-200 dark:bg-zinc-800 rounded-full">
           <RecordIconButton
             status={isRecording}
             onClick={startScreenRecording}
