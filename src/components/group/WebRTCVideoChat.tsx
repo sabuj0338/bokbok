@@ -41,39 +41,20 @@ export default function WebRTCVideoChat({ roomId }: Props) {
         if (screenShareVideoRef.current) {
           screenShareVideoRef.current.srcObject = screenShareStream;
         }
-        // Replace video track in WebRTC connection
-        const screenTrack = screenShareStream.getVideoTracks()[0];
 
-        // Replace video track with screen track
+        // Add screen sharing track to all peer connections
+        const screenTrack = screenShareStream.getVideoTracks()[0];
         Object.values(peerConnectionListRef.current).forEach(
           (peerConnection) => {
-            const sender = peerConnection
-              .getSenders()
-              .find((s) => s.track?.kind === "video");
-            if (sender) {
-              sender.replaceTrack(screenTrack);
-            }
+            peerConnection.addTrack(screenTrack, screenShareStream);
           }
         );
 
-        // Force renegotiation to update peers
-        // await Promise.all(
-        //   Object.values(peerConnectionListRef.current).map(
-        //     async (peerConnection) => {
-        //       const offer = await peerConnection.createOffer();
-        //       await peerConnection.setLocalDescription(offer);
-        //       socket.emit("room:offer", socket.id, offer);
-        //     }
-        //   )
-        // );
-
         // Notify peers about screen sharing
-        socket.emit("room:user-screen-share", socket.id, true);
+        socket.emit("room:user-screen-share", screenShareStream.id, true);
 
         // Handle stop sharing event
-        screenTrack.onended = () => {
-          stopScreenShare();
-        };
+        screenTrack.onended = () => stopScreenShare();
 
         setIsScreenSharing(true);
       } catch (error) {
@@ -86,39 +67,35 @@ export default function WebRTCVideoChat({ roomId }: Props) {
 
   // Stop Screen Sharing
   async function stopScreenShare() {
+    // Clear screen share video element
     if (screenShareStreamRef.current) {
-      screenShareStreamRef.current.getTracks().forEach((track) => track.stop());
-      screenShareStreamRef.current = null;
-    }
 
-    // Switch back to the camera stream
-    if (localStreamRef.current) {
-      const newVideoTrack = localStreamRef.current.getVideoTracks()[0];
+      // Notify peers that screen sharing stopped
+      socket.emit("room:user-screen-share", screenShareStreamRef.current.id, false);
+
+      // Remove the screen share track from all peer connections
       Object.values(peerConnectionListRef.current).forEach((peerConnection) => {
-        const sender = peerConnection
-          .getSenders()
-          .find((s) => s.track?.kind === "video");
-        if (sender) sender.replaceTrack(newVideoTrack);
+        const senders = peerConnection.getSenders();
+
+        senders.forEach((sender) => {
+          // Check if this sender is sending the screen sharing track
+          if (
+            sender.track &&
+            sender.track.kind === "video" &&
+            // sender.track.id === screenTrack.id
+            sender.track.label.includes("screen")
+          ) {
+            // Remove the track from the peer connection
+            peerConnection.removeTrack(sender);
+          }
+        });
       });
 
-      // turn off video
-      toggleVideo();
-      // Force renegotiation to update peers
-      // await Promise.all(
-      //   Object.values(peerConnectionListRef.current).map(
-      //     async (peerConnection) => {
-      //       const offer = await peerConnection.createOffer();
-      //       await peerConnection.setLocalDescription(offer);
-      //       socket.emit("room:offer", socket.id, offer);
-      //     }
-      //   )
-      // );
+      screenShareStreamRef.current.getTracks().forEach((track) => track.stop());
+      screenShareStreamRef.current = null;
+
+      setIsScreenSharing(false);
     }
-
-    // Notify peers that screen sharing stopped
-    socket.emit("room:user-screen-share", socket.id, false);
-
-    setIsScreenSharing(false);
   }
 
   async function toggleAudio() {
@@ -220,7 +197,7 @@ export default function WebRTCVideoChat({ roomId }: Props) {
     // add remote stream to videoStreamList,
     // it fires when remote user add stream to peer connection
     peerConnection.ontrack = (event) => {
-      // Check if this stream is already added
+      console.log("👉 Received remote camera stream");
       setVideoStreamList((prev) => {
         const isAlreadyAdded = prev.some(
           (item) =>
@@ -232,8 +209,10 @@ export default function WebRTCVideoChat({ roomId }: Props) {
             {
               peerId,
               stream: event.streams[0],
-              isAudioEnabled: true,
-              isVideoEnabled: true,
+              isAudioEnabled: event.streams[0].getAudioTracks().length > 0,
+              isVideoEnabled: event.streams[0].getVideoTracks().length > 0,
+              // isAudioEnabled: true,
+              // isVideoEnabled: true,
             },
           ];
         }
@@ -305,94 +284,109 @@ export default function WebRTCVideoChat({ roomId }: Props) {
   }
 
   useEffect(() => {
-    if (isSocketConnected) {
+    console.info("👉 is socket connected use effect");
+    socket.on("connect", () => {
+      console.log("👉 socket connected");
+
       localStreamInit(socket.id as string);
-    }
-  }, [isSocketConnected]);
 
-  useEffect(() => {
-    console.log("👉 use effect", socket.connected);
-
-    socket.on("connect", () => setIsSocketConnected(true));
-
-    socket.on("disconnect", () => setIsSocketConnected(false));
-
-    const initWebRTC = async () => {
       socket.emit("join-room", roomId);
 
-      socket.on("room:user-joined", async (peerId) => {
-        console.log("room:user-joined", peerId);
+      setIsSocketConnected(true);
+    });
 
-        const peerConnection = await createPeerConnection(peerId);
-        peerConnectionListRef.current[peerId] = peerConnection;
+    socket.on("disconnect", () => {
+      console.log("👉 socket disconnected");
+      setIsSocketConnected(false);
+    });
 
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        socket.emit("room:offer", peerId, offer);
+    socket.on("room:user-joined", async (peerId) => {
+      console.log("room:user-joined", peerId);
+
+      const peerConnection = await createPeerConnection(peerId);
+      peerConnectionListRef.current[peerId] = peerConnection;
+
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit("room:offer", peerId, offer);
+    });
+
+    socket.on("room:offer", async (peerId, offer) => {
+      console.log("room:offer", peerId);
+
+      const peerConnection =
+        peerConnectionListRef.current[peerId] ||
+        (await createPeerConnection(peerId));
+      peerConnectionListRef.current[peerId] = peerConnection;
+
+      await peerConnection.setRemoteDescription(
+        new RTCSessionDescription(offer)
+      );
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      socket.emit("room:answer", peerId, answer);
+    });
+
+    socket.on("room:answer", async (peerId, answer) => {
+      console.log("room:answer", peerId);
+      await peerConnectionListRef.current[peerId].setRemoteDescription(
+        new RTCSessionDescription(answer)
+      );
+    });
+
+    socket.on("room:ice-candidate", (peerId, candidate) => {
+      console.log("room:ice-candidate", peerId);
+      peerConnectionListRef.current[peerId].addIceCandidate(
+        new RTCIceCandidate(candidate)
+      );
+    });
+
+    socket.on("room:user-left", (peerId) => {
+      console.log("room:user-left", peerId);
+
+      if (peerConnectionListRef.current[peerId]) {
+        peerConnectionListRef.current[peerId].close();
+        delete peerConnectionListRef.current[peerId];
+      }
+
+      setVideoStreamList((prev) => {
+        // Stop all tracks of the stream before removal
+        const streamToRemove = prev.find((item) => item.peerId === peerId);
+        streamToRemove?.stream?.getTracks().forEach((track) => track.stop());
+
+        // Filter out the stream of the disconnected peer
+        return prev.filter((item) => item.peerId !== peerId);
       });
+    });
 
-      socket.on("room:offer", async (peerId, offer) => {
-        console.log("room:offer", peerId);
+    // Handle receiving a remote screen share signal
+    socket.on("room:user-screen-share", (screenTrackId, isSharing) => {
+      console.log("room:user-screen-share", screenTrackId, isSharing);
 
-        const peerConnection = await createPeerConnection(peerId);
-        peerConnectionListRef.current[peerId] = peerConnection;
-
-        await peerConnection.setRemoteDescription(
-          new RTCSessionDescription(offer)
-        );
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        socket.emit("room:answer", peerId, answer);
-      });
-
-      socket.on("room:answer", async (peerId, answer) => {
-        console.log("room:answer", peerId);
-        await peerConnectionListRef.current[peerId].setRemoteDescription(
-          new RTCSessionDescription(answer)
-        );
-      });
-
-      socket.on("room:ice-candidate", (peerId, candidate) => {
-        console.log("room:ice-candidate", peerId);
-        peerConnectionListRef.current[peerId].addIceCandidate(
-          new RTCIceCandidate(candidate)
-        );
-      });
-
-      socket.on("room:user-left", (peerId) => {
-        console.log("room:user-left", peerId);
-
-        if (peerConnectionListRef.current[peerId]) {
-          peerConnectionListRef.current[peerId].close();
-          delete peerConnectionListRef.current[peerId];
-        }
-
-        setVideoStreamList((prev) => {
-          // Stop all tracks of the stream before removal
-          const streamToRemove = prev.find((item) => item.peerId === peerId);
-          streamToRemove?.stream?.getTracks().forEach((track) => track.stop());
-
-          // Filter out the stream of the disconnected peer
-          return prev.filter((item) => item.peerId !== peerId);
-        });
-      });
-
-      // Handle receiving a remote screen share signal
-      socket.on("room:user-screen-share", (peerId, isSharing) => {
-        console.log("room:user-screen-share", isSharing, peerId);
-
+      if (isSharing) {
         setVideoStreamList((prev) => {
           return prev.map((item) => {
-            if (item.peerId === peerId) {
-              return { ...item, isVideoEnabled: isSharing };
+            if (item.stream.id === screenTrackId) {
+              // Stop showing screen share when remote user stops
+              if (screenShareVideoRef.current) {
+                screenShareVideoRef.current.srcObject = item.stream;
+              }
+              return { ...item, isScreenSharing: isSharing };
             }
             return item;
           });
         });
-      });
-    };
+      } else {
+        // Stop showing screen share when remote user stops
+        if (screenShareVideoRef.current) {
+          screenShareVideoRef.current.srcObject = null;
+        }
 
-    initWebRTC();
+        setVideoStreamList((prev) => {
+          return prev.filter((item) => item.stream.id !== screenTrackId);
+        });
+      }
+    });
 
     socket.on("room:user-toggle-video", (peerId, enabled) => {
       console.log("room:user-toggle-video", peerId, enabled);
@@ -429,17 +423,19 @@ export default function WebRTCVideoChat({ roomId }: Props) {
     });
 
     return () => {
+      socket.off("connect");
+      socket.off("disconnect");
+
+      socket.off("room:user-screen-share");
+
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
-      socket.off("connect");
-      socket.off("disconnect");
-      // setIsScreenSharing(false);
       socket.disconnect();
     };
   }, [roomId]);
 
-  console.log("roomId", videoStreamList, peerConnectionListRef.current);
+  console.log("roomId", videoStreamList, screenShareStreamRef.current);
 
   const hidden = isSocketConnected ? "" : "hidden";
   const localVideoStream = videoStreamList.find((item) => item.isLocal);

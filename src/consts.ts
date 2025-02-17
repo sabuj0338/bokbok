@@ -10,7 +10,7 @@ export const media_constraints = {
       max: 30,
     },
   },
-  audio: true,
+  audio: false,
 };
 
 export const ice_servers = {
