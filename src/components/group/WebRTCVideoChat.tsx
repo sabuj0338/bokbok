@@ -25,7 +25,7 @@ export default function WebRTCVideoChat({ roomId }: Props) {
   const screenShareVideoRef = useRef<HTMLVideoElement>(null);
   const screenShareStreamRef = useRef<MediaStream | null>(null);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  // const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
+  const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
 
   async function toggleScreenShare() {
     const localStream = localStreamRef.current;
@@ -69,9 +69,12 @@ export default function WebRTCVideoChat({ roomId }: Props) {
   async function stopScreenShare() {
     // Clear screen share video element
     if (screenShareStreamRef.current) {
-
       // Notify peers that screen sharing stopped
-      socket.emit("room:user-screen-share", screenShareStreamRef.current.id, false);
+      socket.emit(
+        "room:user-screen-share",
+        screenShareStreamRef.current.id,
+        false
+      );
 
       // Remove the screen share track from all peer connections
       Object.values(peerConnectionListRef.current).forEach((peerConnection) => {
@@ -360,19 +363,23 @@ export default function WebRTCVideoChat({ roomId }: Props) {
     });
 
     // Handle receiving a remote screen share signal
-    socket.on("room:user-screen-share", (screenTrackId, isSharing) => {
+    socket.on("room:user-screen-share", async (screenTrackId, isSharing) => {
       console.log("room:user-screen-share", screenTrackId, isSharing);
+
+      // wait couple of seconds before showing screen share
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      setIsRemoteScreenSharing(isSharing);
 
       if (isSharing) {
         setVideoStreamList((prev) => {
           return prev.map((item) => {
-            if (item.stream.id === screenTrackId) {
-              // Stop showing screen share when remote user stops
-              if (screenShareVideoRef.current) {
-                screenShareVideoRef.current.srcObject = item.stream;
-              }
-              return { ...item, isScreenSharing: isSharing };
+            if (
+              item.stream.id === screenTrackId &&
+              screenShareVideoRef.current
+            ) {
+              screenShareVideoRef.current.srcObject = localStreamRef.current;
             }
+
             return item;
           });
         });
@@ -448,10 +455,10 @@ export default function WebRTCVideoChat({ roomId }: Props) {
         className={`min-h-screen flex flex-col justify-center items-center ${hidden}`}
       >
         <div className="w-full h-full flex flex-wrap md:flex-nowrap justify-center items-center gap-4">
-          <div className={`w-full sm:w-4/5 ${isScreenSharing ? "" : "hidden"}`}>
+          <div className={`w-full sm:w-4/5 ${(isScreenSharing || isRemoteScreenSharing) ? "" : "hidden"}`}>
             <Video
               id="screenShareVideo"
-              isVideoEnabled={isScreenSharing}
+              isVideoEnabled={isScreenSharing || isRemoteScreenSharing}
               isAudioEnabled={false}
               videoRef={screenShareVideoRef}
               className={`border border-zinc-600`}
@@ -461,7 +468,7 @@ export default function WebRTCVideoChat({ roomId }: Props) {
           <div
             className={twMerge(
               "grid grid-cols-1 gap-4",
-              isScreenSharing
+              (isScreenSharing || isRemoteScreenSharing)
                 ? "w-full sm:w-1/5"
                 : "w-full sm:grid-cols-2 lg:grid-cols-3"
             )}
