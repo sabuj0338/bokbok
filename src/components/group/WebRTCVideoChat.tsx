@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { twMerge } from "tailwind-merge";
-import { ice_servers, media_constraints } from "../../consts";
+import { BIT_RATES, ICE_SERVERS, MEDIA_CONSTRAINTS } from "../../consts";
 import { socket } from "../../socket";
 import AudioIconButton from "../buttons/AudioIconButton";
 import HangUpIconButton from "../buttons/HangUpIconButton";
@@ -28,9 +28,6 @@ export default function WebRTCVideoChat({ roomId }: Props) {
   const [isRemoteScreenSharing, setIsRemoteScreenSharing] = useState(false);
 
   async function toggleScreenShare() {
-    const localStream = localStreamRef.current;
-    if (!localStream) return;
-
     if (!isScreenSharing) {
       try {
         const screenShareStream = await navigator.mediaDevices.getDisplayMedia({
@@ -149,7 +146,7 @@ export default function WebRTCVideoChat({ roomId }: Props) {
     } else {
       // Turn video ON
       const newLocalStream = await navigator.mediaDevices.getUserMedia({
-        video: media_constraints.video,
+        video: MEDIA_CONSTRAINTS.video,
       });
       const newVideoTrack = newLocalStream.getVideoTracks()[0];
       localStreamRef.current.addTrack(newVideoTrack);
@@ -189,7 +186,7 @@ export default function WebRTCVideoChat({ roomId }: Props) {
   async function createPeerConnection(peerId: string) {
     console.log("👉 create peer connection", peerId);
 
-    const peerConnection = new RTCPeerConnection(ice_servers);
+    const peerConnection = new RTCPeerConnection(ICE_SERVERS);
 
     peerConnection.onicecandidate = (event) => {
       if (event.candidate) {
@@ -249,25 +246,62 @@ export default function WebRTCVideoChat({ roomId }: Props) {
 
     // Handle offer/answer exchange
     peerConnection.onnegotiationneeded = async () => {
+      console.log("👉 Negotiation needed");
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
       socket.emit("room:offer", peerId, offer);
+
+      // Set bitrate for video sender (important!)
+      const senders = peerConnection.getSenders();
+      senders.forEach(async (sender) => {
+        if (sender.track && sender.track.kind === "video") {
+          const parameters = sender.getParameters();
+
+          // Check if encodings array exists, otherwise initialize it
+          if (!parameters.encodings || parameters.encodings.length === 0) {
+            parameters.encodings = [{}];
+          }
+
+          // Set maxBitrate safely
+          // parameters.encodings[0].maxBitrate = 200000; // 200kbps (adjust as needed)
+          parameters.encodings = BIT_RATES;
+
+          try {
+            await sender.setParameters(parameters);
+            console.log("👉 Bitrate set for video sender");
+          } catch (error) {
+            console.error("❌ Error during negotiation:", error);
+          }
+        }
+      });
     };
 
     // Attach local stream only once
     const _localStream = localStreamRef.current;
     if (_localStream) {
-      _localStream
-        .getTracks()
-        .forEach((track) => peerConnection.addTrack(track, _localStream));
+      // _localStream
+      //   .getTracks()
+      //   .forEach((track) => peerConnection.addTrack(track, _localStream));
+
+      // Always add audio first, then video to maintain consistent m-line order
+      const audioTrack = _localStream.getAudioTracks()[0];
+      const videoTrack = _localStream.getVideoTracks()[0];
+
+      if (audioTrack) {
+        peerConnection.addTrack(audioTrack, _localStream);
+      }
+      if (videoTrack) {
+        peerConnection.addTrack(videoTrack, _localStream);
+      }
     }
 
     return peerConnection;
   }
 
   async function localStreamInit(peerId: string) {
+    if (localStreamRef.current) return; // Prevent re-initialization
     const _localStream = await navigator.mediaDevices.getUserMedia(
-      media_constraints
+      MEDIA_CONSTRAINTS
     );
 
     // store local stream
@@ -312,6 +346,30 @@ export default function WebRTCVideoChat({ roomId }: Props) {
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
       socket.emit("room:offer", peerId, offer);
+
+      // Set bitrate for video sender (important!)
+      // const senders = peerConnection.getSenders();
+      // senders.forEach(async (sender) => {
+      //   if (sender.track && sender.track.kind === "video") {
+      //     const parameters = sender.getParameters();
+
+      //     // Check if encodings array exists, otherwise initialize it
+      //     if (!parameters.encodings || parameters.encodings.length === 0) {
+      //       parameters.encodings = [{}];
+      //     }
+
+      //     // Set maxBitrate safely
+      //     // parameters.encodings[0].maxBitrate = 200000; // 200kbps (adjust as needed)
+      //     parameters.encodings = BIT_RATES;
+
+      //     try {
+      //       await sender.setParameters(parameters);
+      //       console.log("👉 Bitrate set for video sender");
+      //     } catch (error) {
+      //       console.error("❌ Error during negotiation:", error);
+      //     }
+      //   }
+      // });
     });
 
     socket.on("room:offer", async (peerId, offer) => {
@@ -328,6 +386,30 @@ export default function WebRTCVideoChat({ roomId }: Props) {
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
       socket.emit("room:answer", peerId, answer);
+
+      // Set bitrate for video sender (important!)
+      // const senders = peerConnection.getSenders();
+      // senders.forEach(async (sender) => {
+      //   if (sender.track && sender.track.kind === "video") {
+      //     const parameters = sender.getParameters();
+
+      //     // Check if encodings array exists, otherwise initialize it
+      //     if (!parameters.encodings || parameters.encodings.length === 0) {
+      //       parameters.encodings = [{}];
+      //     }
+
+      //     // Set maxBitrate safely
+      //     // parameters.encodings[0].maxBitrate = 200000; // 200kbps (adjust as needed)
+      //     parameters.encodings = BIT_RATES;
+
+      //     try {
+      //       await sender.setParameters(parameters);
+      //       console.log("👉 Bitrate set for video sender");
+      //     } catch (error) {
+      //       console.error("❌ Error during negotiation:", error);
+      //     }
+      //   }
+      // });
     });
 
     socket.on("room:answer", async (peerId, answer) => {
@@ -367,7 +449,7 @@ export default function WebRTCVideoChat({ roomId }: Props) {
       console.log("room:user-screen-share", screenTrackId, isSharing);
 
       // wait couple of seconds before showing screen share
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       setIsRemoteScreenSharing(isSharing);
 
       if (isSharing) {
@@ -377,7 +459,7 @@ export default function WebRTCVideoChat({ roomId }: Props) {
               item.stream.id === screenTrackId &&
               screenShareVideoRef.current
             ) {
-              screenShareVideoRef.current.srcObject = localStreamRef.current;
+              screenShareVideoRef.current.srcObject = item.stream;
             }
 
             return item;
@@ -455,7 +537,11 @@ export default function WebRTCVideoChat({ roomId }: Props) {
         className={`min-h-screen flex flex-col justify-center items-center ${hidden}`}
       >
         <div className="w-full h-full flex flex-wrap md:flex-nowrap justify-center items-center gap-4">
-          <div className={`w-full sm:w-4/5 ${(isScreenSharing || isRemoteScreenSharing) ? "" : "hidden"}`}>
+          <div
+            className={`w-full sm:w-4/5 ${
+              isScreenSharing || isRemoteScreenSharing ? "" : "hidden"
+            }`}
+          >
             <Video
               id="screenShareVideo"
               isVideoEnabled={isScreenSharing || isRemoteScreenSharing}
@@ -468,7 +554,7 @@ export default function WebRTCVideoChat({ roomId }: Props) {
           <div
             className={twMerge(
               "grid grid-cols-1 gap-4",
-              (isScreenSharing || isRemoteScreenSharing)
+              isScreenSharing || isRemoteScreenSharing
                 ? "w-full sm:w-1/5"
                 : "w-full sm:grid-cols-2 lg:grid-cols-3"
             )}

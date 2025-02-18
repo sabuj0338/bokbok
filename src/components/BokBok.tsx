@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ice_servers, media_constraints } from "../consts";
+import { BIT_RATES, ICE_SERVERS, MEDIA_CONSTRAINTS } from "../consts";
 import { socket } from "../socket";
 import BokBokView from "./BokBokView";
 
@@ -42,14 +42,14 @@ export default function BokBok() {
 
     const initWebRTC = async () => {
       const localStream = await navigator.mediaDevices.getUserMedia(
-        media_constraints
+        MEDIA_CONSTRAINTS
       );
       localStreamRef.current = localStream;
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = localStream;
       }
 
-      const peerConnection = new RTCPeerConnection(ice_servers);
+      const peerConnection = new RTCPeerConnection(ICE_SERVERS);
 
       // Attach local stream tracks to peer connection
       localStream
@@ -176,20 +176,7 @@ export default function BokBok() {
     if (!sender) return;
     const params = sender.getParameters();
     // params.encodings[0].maxBitrate = bitrate * 1000;
-    params.encodings = [
-      {
-        rid: "high",
-        maxBitrate: 2500000,
-      }, // High quality
-      {
-        rid: "mid",
-        maxBitrate: 1000000,
-      }, // Medium quality
-      {
-        rid: "low",
-        maxBitrate: 300000,
-      }, // Low quality
-    ];
+    params.encodings = BIT_RATES;
     await sender.setParameters(params);
   }
 
@@ -204,7 +191,7 @@ export default function BokBok() {
         socket.emit("toggle-video", false);
       } else {
         const newStream = await navigator.mediaDevices.getUserMedia({
-          video: media_constraints.video,
+          video: MEDIA_CONSTRAINTS.video,
         });
         const newVideoTrack = newStream.getVideoTracks()[0];
         localStreamRef.current.addTrack(newVideoTrack);

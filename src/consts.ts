@@ -1,4 +1,4 @@
-export const media_constraints = {
+export const MEDIA_CONSTRAINTS = {
   video: {
     width: {
       ideal: 1280,
@@ -13,10 +13,25 @@ export const media_constraints = {
   audio: true,
 };
 
-export const ice_servers = {
+export const ICE_SERVERS = {
   iceServers: [
     {
       urls: "stun:stun.l.google.com:19302",
     },
   ],
 };
+
+export const BIT_RATES = [
+  {
+    rid: "high",
+    maxBitrate: 2500000,
+  }, // High quality
+  {
+    rid: "mid",
+    maxBitrate: 1000000,
+  }, // Medium quality
+  {
+    rid: "low",
+    maxBitrate: 300000,
+  }, // Low quality
+];
