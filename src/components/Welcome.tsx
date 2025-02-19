@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 
 export default function Welcome() {
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputOneToOneRef = useRef<HTMLInputElement>(null);
 
   const handleGetStarted = () => {
     const id = inputRef.current?.value;
@@ -16,11 +17,20 @@ export default function Welcome() {
       return;
     }
     window.location.href = "/" + id;
-    // window.location.reload();
   };
 
   const handleGetStartedOneToOne = () => {
-    window.location.href = "/one-to-one";
+    const id = inputOneToOneRef.current?.value;
+
+    if (!id) {
+      toast.error("Please enter a meeting ID");
+      return;
+    }
+    if (id.length < 4 && id.includes(" ")) {
+      toast.error("Meeting ID must be at least 4 characters and no spaces");
+      return;
+    }
+    window.location.href = "/one-to-one/" + id;
   };
 
   return (
@@ -50,12 +60,22 @@ export default function Welcome() {
                 Get Started
               </button>
             </div>
-            <button
-              onClick={handleGetStartedOneToOne}
-              className="w-full mt-4 py-3 lg:py-4 px-6 lg:px-16 text-white-500 font-semibold rounded-full bg-green-500  active:bg-green-600 hover:shadow-green-md transition-all outline-none cursor-pointer focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-900 focus:ring-green-500 focus:outline-none"
-            >
-              One-To-One
-            </button>
+            <br />
+            <div className="relative w-full bg-gray-900 rounded-full flex">
+              <input
+                ref={inputOneToOneRef}
+                type="text"
+                name=""
+                className="w-full bg-zinc-200 dark:bg-gray-900 rounded-full py-3 lg:py-4 px-4 lg:px-6 text-zinc-900 dark:text-white placeholder:text-gray-500 focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-900 focus:ring-green-500 focus:outline-none"
+                placeholder="Enter meeting ID"
+              />
+              <button
+                onClick={handleGetStartedOneToOne}
+                className="absolute right-0 py-3 lg:py-4 px-6 lg:px-16 text-white-500 font-semibold rounded-full bg-green-500  active:bg-green-600 hover:shadow-green-md transition-all outline-none cursor-pointer focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-900 focus:ring-green-500 focus:outline-none"
+              >
+                One-To-One
+              </button>
+            </div>
           </div>
           <div className="w-full flex justify-center items-center p-5">
             <img

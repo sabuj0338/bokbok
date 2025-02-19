@@ -4,11 +4,14 @@ import Loader from "./components/Loader";
 const WebRTCVideoChat = lazy(
   () => import("./components/group/WebRTCVideoChat")
 );
-const BokBok = lazy(() => import("./components/BokBok"));
+const OneToOne = lazy(() => import("./components/one-to-one/OneToOne"));
+// const BokBok = lazy(() => import("./components/BokBok"));
 const Welcome = lazy(() => import("./components/Welcome"));
 
 function App() {
+  const pathname = window.location.pathname;
   const roomId = window.location.pathname.split("/").pop();
+  // console.log(window.location.pathname, roomId, "/one-to-one/" + roomId);
 
   if (!roomId) {
     return (
@@ -29,10 +32,11 @@ function App() {
     );
   }
 
-  if (roomId === "one-to-one") {
+  if (pathname === "/one-to-one/" + roomId) {
     return (
       <Suspense fallback={<Loader />}>
-        <BokBok />
+        <OneToOne roomId={"one-to-one" +roomId} />
+        {/* <BokBok /> */}
       </Suspense>
     );
   }
