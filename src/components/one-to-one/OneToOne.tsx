@@ -56,14 +56,7 @@ export default function OneToOne({ roomId }: Props) {
      */
     socket.on("user-disconnected", (remoteUserId) => {
       console.log("👉 user-disconnected event", remoteUserId);
-      if (peerConnectionRef.current) {
-        peerConnectionRef.current.close();
-        peerConnectionRef.current = null;
-      }
-
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current = null;
-      }
+      hangUp();
     });
 
     /**
