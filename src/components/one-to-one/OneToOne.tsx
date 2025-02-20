@@ -56,7 +56,10 @@ export default function OneToOne({ roomId }: Props) {
      */
     socket.on("user-disconnected", (remoteUserId) => {
       console.log("👉 user-disconnected event", remoteUserId);
-      peerConnectionRef.current = null;
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
     });
 
     /**
@@ -392,12 +395,13 @@ export default function OneToOne({ roomId }: Props) {
     recordedChunksRef.current = [];
   }
 
-  function hangUp(byClick?: boolean) {
+  function hangUp() {
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
     }
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
     }
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stop();
@@ -407,7 +411,6 @@ export default function OneToOne({ roomId }: Props) {
     setIsScreenSharing(false);
     setIsRemoteScreenSharing(false);
     setIsRecording(false);
-    if (byClick === true) socket.emit("disconnecting");
     socket.disconnect();
     window.location.href = "/";
   }
@@ -427,7 +430,7 @@ export default function OneToOne({ roomId }: Props) {
       toggleScreenShare={toggleScreenShare}
       toggleVideo={toggleVideo}
       toggleAudio={toggleAudio}
-      hangUp={() => hangUp(true)}
+      hangUp={hangUp}
       localVideoRef={localVideoRef}
       remoteVideoRef={remoteVideoRef}
       screenShareVideoRef={screenShareVideoRef}
