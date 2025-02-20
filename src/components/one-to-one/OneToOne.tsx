@@ -60,6 +60,10 @@ export default function OneToOne({ roomId }: Props) {
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
       }
+
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current = null;
+      }
     });
 
     /**
@@ -409,7 +413,6 @@ export default function OneToOne({ roomId }: Props) {
     setIsVideoEnabled(false);
     setIsAudioEnabled(false);
     setIsScreenSharing(false);
-    setIsRemoteScreenSharing(false);
     setIsRecording(false);
     socket.disconnect();
     window.location.href = "/";
